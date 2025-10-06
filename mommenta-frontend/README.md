@@ -1,16 +1,51 @@
-# React + Vite
+# 🌟 Mommenta — Social Media Web App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Mommenta is a modern social media platform built with the **MERN stack (MongoDB, Express, React, Node.js)** that allows users to share moments, interact with others, and personalize their profiles.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Features
 
-## React Compiler
+- 🔐 **User Authentication**
+  - Signup, login, JWT-based authorization
+- 🏠 **Personalized Feed**
+  - View posts from followed users and global feed mix
+- 🖼️ **Create Posts**
+  - Upload images, videos, and write captions
+- ❤️ **Likes & Comments**
+  - Engage with other users' posts in real-time
+- 👤 **Profile Management**
+  - Edit profile info, bio, and profile picture
+- 🧭 **Explore Page**
+  - Discover other users and trending content
+- 🌗 **Dark / Light Theme Toggle**
+  - Save user theme preferences
+- ⚡ **Infinite Scroll**
+  - Load more posts seamlessly as you scroll
 
-The React Compiler is not enabled on this template. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🛠️ Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Frontend
+- React.js + Vite
+- Tailwind CSS
+- Axios
+- React Router DOM
+- Emoji support + hashtag highlighting
+
+### Backend
+- Node.js
+- Express.js
+- MongoDB (Mongoose)
+- Multer (for media upload)
+- JWT authentication
+
+---
+
+## 📦 Installation
+
+### 1️⃣ Clone the repository
+```bash
+git clone https://github.com/yourusername/mommenta.git
+cd mommenta
