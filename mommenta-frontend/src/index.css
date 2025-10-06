@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Smooth transitions for theme changes */
+body, .card, .btn, .input {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+@layer utilities {
+  @keyframes scalePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+  }
+
+  .animate-scale {
+    animation: scalePulse 1s ease-in-out infinite;
+  }
+}
+
+.my-masonry-grid {
+  display: flex;
+  margin-left: -16px; /* gutter */
+  width: auto;
+}
+.my-masonry-grid_column {
+  padding-left: 16px; /* gutter */
+  background-clip: padding-box;
+}
+.my-masonry-grid_column > img {
+  margin-bottom: 16px;
+}
