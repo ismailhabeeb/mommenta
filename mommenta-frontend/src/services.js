@@ -1,4 +1,5 @@
 import API from "./api";
+export const getToken = () => localStorage.getItem("token");
 /* ================================
    AUTH
 ================================ */
@@ -10,12 +11,14 @@ export const getCurrentUser = () => API.get("/auth/me");                        
 /* ================================
    USERS
 ================================ */
-export const getProfile = (username) => API.get(`/users/${username}`);
+export const fetchProfile = (userId, page = 1, limit = 9) =>
+  API.get(`/users/${userId}?page=${page}&limit=${limit}`);
 export const updateProfile = (data) => API.put("/users/update", data);              //done
-export const followUser = (userId) => API.post(`/users/${userId}/follow`);
-export const unfollowUser = (userId) => API.post(`/users/${userId}/unfollow`);
+export const followUser = (userId) => API.put(`/users/${userId}/follow`);
+export const unfollowUser = (userId) => API.put(`/users/${userId}/unfollow`);
 export const fetchFollowers = (userId) => API.get(`/users/${userId}/followers`);
 export const fetchFollowing = (userId) => API.get(`/users/${userId}/following`);
+
 
 /* ================================
    POSTS
@@ -49,11 +52,16 @@ export const fetchStoryViewers = (storyId) =>
 /* ================================
    CHAT / MESSAGES
 ================================ */
-export const fetchConversations = () => API.get("/chat/conversations");
-export const fetchMessages = (chatId) => API.get(`/chat/${chatId}/messages`);
+export const fetchConversations = () => API.get("/messages/conversations");
+export const fetchMessages = (chatId) => API.get(`/messages/${chatId}`);
 export const sendMessage = (chatId, data) =>
-  API.post(`/chat/${chatId}/messages`, data);
-export const startConversation = (userId) => API.post(`/chat/start/${userId}`);
+  API.post(`/messages/${chatId}`, data);
+export const startConversation = (userId) =>
+  API.post(`/messages/start/${userId}`);
+export const markMessagesRead = (chatId) =>
+  API.put(`/messages/${chatId}/read`);
+
+
 
 /* ================================
    EXPLORE

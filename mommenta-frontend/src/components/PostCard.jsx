@@ -15,6 +15,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 import "swiper/css/thumbs";
+import { Link } from "react-router-dom";
 
 // highlight hashtags in caption
 function renderCaption(text = "") {
@@ -33,7 +34,7 @@ function renderCaption(text = "") {
   );
 }
 
-export default function PostCard({ post, onUpdateComments }) {
+export default function PostCard({ post,currentusername, onUpdateComments }) {
   const [comment, setComment] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [expandedComments, setExpandedComments] = useState({});
@@ -109,7 +110,7 @@ export default function PostCard({ post, onUpdateComments }) {
     <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden mb-1 w-full group transition-all">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center">
+        <Link to={`/profile/${post.user?._id}`} className="flex items-center">
           <img
             src={post.user?.profilePic || "/default-avatar.png"}
             alt={post.user?.username || "user"}
@@ -123,7 +124,7 @@ export default function PostCard({ post, onUpdateComments }) {
               @{post.user?.username?.toLowerCase()}
             </p>
           </div>
-        </div>
+        </Link>
         <button className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
           •••
         </button>

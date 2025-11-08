@@ -3,10 +3,12 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
+  fullName: {type: String},
   password: { type: String, required: true },
   profilePic: { type: String, default: "" }, // store image URL (Cloudinary/S3 later)
   bio: { type: String, default: "" },
   location:{type: String, default: ""},
+  website: {type:String},
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   // 📌 Saved posts

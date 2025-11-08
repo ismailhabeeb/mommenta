@@ -84,7 +84,7 @@ export default function Home() {
       </div>
 
       {/* Right Sidebar / DesktopNav */}
-      <DesktopNav username={user.username} />
+      <DesktopNav username={user._id} />
 
       {/* Center Feed */}
       <div className="flex justify-center w-full pt-4 pb-16">
@@ -107,10 +107,11 @@ export default function Home() {
           >
             <div className="space-y-1">
               {posts.length > 0 ? (
-                posts.map((post) => (
+                posts.map((post,i) => (
                   <PostCard
-                    key={post._id}
+                    key={i}
                     post={post}
+                    currentusername={user._id}
                   />
                 ))
               ) : (
@@ -122,7 +123,7 @@ export default function Home() {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <BottomNav username={user.username} className="lg:hidden" />
+      <BottomNav username={user._id} className="lg:hidden" />
     </div>
   );
 }

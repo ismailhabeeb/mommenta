@@ -1,14 +1,20 @@
+// routes/messages.js
 import express from "express";
-import { sendMessage, getMessages, markMessagesRead } from "../controllers/messageController.js";
+import {
+  getConversations,
+  getMessages,
+  sendMessage,
+  startConversation,
+  markMessagesRead
+} from "../controllers/messageController.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Send message
-router.post("/", authMiddleware, sendMessage);
+router.get("/conversations", authMiddleware, getConversations);
+router.get("/:chatId", authMiddleware, getMessages);
+router.post("/:chatId", authMiddleware, sendMessage);
+router.post("/start/:userId", authMiddleware, startConversation);
+router.put("/:chatId/read", authMiddleware, markMessagesRead);
 
-// Get conversation with a user
-router.get("/:userId", authMiddleware, getMessages);
-// Mark all messages from user as read
-router.put("/:userId/read", authMiddleware, markMessagesRead);
 export default router;

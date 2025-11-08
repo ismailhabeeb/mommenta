@@ -8,47 +8,111 @@ import {
   mdiPlus,
 } from "@mdi/js";
 import { Link, useLocation } from "react-router-dom";
+import { useChatDrawer } from "../context/ChatDrawerContext"; // ✅ import
+import { useAuth } from "../context/AuthContext";
 
-export default function DesktopNav({ username = "me" }) {
+export default function DesktopNav({ username }) {
   const location = useLocation();
+ const { isDrawerOpen, activeChat, setActiveChat, openChatDrawer, closeChat } =
+    useChatDrawer();
 
-  const navItems = [
-    { icon: mdiHomeOutline, to: "/", label: "Home" },
-    { icon: mdiMagnify, to: "/explore", label: "Explore" },
-    { icon: mdiMessageOutline, to: "/messages", label: "Messages" },
-    { icon: mdiBellOutline, to: "/notifications", label: "Notifications" },
-    { icon: mdiAccountOutline, to: `/profile/${username}`, label: "Profile" }, // ✅ dynamic path
-  ];
+   const toggleChatPanel = () => {
+    if (isDrawerOpen) closeChat();
+    else openChatDrawer();
+  };
+
+  const handleBack = () => setActiveChat(null);
+  const { user } = useAuth();
+
+  const currentUsername = username || user?.username || "me";
 
   return (
     <div className="hidden lg:flex flex-col fixed right-6 top-20 w-20 h-[calc(100vh-5rem)] bg-gray-100 dark:bg-gray-900 rounded-2xl shadow-md p-4 justify-between">
-      
-      {/* Navigation Icons */}
+      {/* 🔹 Navigation Icons */}
       <div className="flex flex-col items-center gap-6">
-        {navItems.map((item, idx) => {
-          const isActive = location.pathname.startsWith(item.to);
-          return (
-            <Link
-              key={idx}
-              to={item.to}
-              title={item.label}
-              className="flex flex-col items-center"
-            >
-              <Icon
-                path={item.icon}
-                size={1.5}
-                className={`cursor-pointer transition ${
-                  isActive
-                    ? "text-brand dark:text-brand"
-                    : "text-gray-600 dark:text-gray-300 hover:text-brand"
-                }`}
-              />
-            </Link>
-          );
-        })}
+
+        {/* 🏠 Home */}
+        <Link to="/" title="Home" className="flex flex-col items-center">
+          <Icon
+            path={mdiHomeOutline}
+            size={1.5}
+            className={`cursor-pointer transition ${location.pathname === "/"
+                ? "text-brand dark:text-brand"
+                : "text-gray-600 dark:text-gray-300 hover:text-brand"
+              }`}
+          />
+        </Link>
+
+        {/* 🔍 Explore */}
+        <Link
+          to="/explore"
+          title="Explore"
+          className="flex flex-col items-center"
+        >
+          <Icon
+            path={mdiMagnify}
+            size={1.5}
+            className={`cursor-pointer transition ${location.pathname.startsWith("/explore")
+                ? "text-brand dark:text-brand"
+                : "text-gray-600 dark:text-gray-300 hover:text-brand"
+              }`}
+          />
+        </Link>
+
+        {/* 💬 Messages — opens chat drawer instead of redirect */}
+        <button
+          // onClick={openChatDrawer}
+            onClick={toggleChatPanel}
+
+          onSelectChat={setActiveChat}
+          activeChatId={activeChat?._id}
+          title="Messages"
+          className="flex flex-col items-center focus:outline-none"
+        >
+          <Icon
+            path={mdiMessageOutline}
+            size={1.5}
+            className={`cursor-pointer transition ${location.pathname.startsWith("/messages")
+                ? "text-brand dark:text-brand"
+                : "text-gray-600 dark:text-gray-300 hover:text-brand"
+              }`}
+          />
+        </button>
+
+        {/* 🔔 Notifications */}
+        <Link
+          to="/notifications"
+          title="Notifications"
+          className="flex flex-col items-center"
+        >
+          <Icon
+            path={mdiBellOutline}
+            size={1.5}
+            className={`cursor-pointer transition ${location.pathname.startsWith("/notifications")
+                ? "text-brand dark:text-brand"
+                : "text-gray-600 dark:text-gray-300 hover:text-brand"
+              }`}
+          />
+        </Link>
+
+        {/* 👤 Profile */}
+        <Link
+          to={`/profile/${currentUsername}`}
+          title="Profile"
+          className="flex flex-col items-center"
+        >
+          <Icon
+            path={mdiAccountOutline}
+            size={1.5}
+            className={`cursor-pointer transition ${location.pathname.startsWith(`/profile/${currentUsername}`)
+                ? "text-brand dark:text-brand"
+                : "text-gray-600 dark:text-gray-300 hover:text-brand"
+              }`}
+          />
+        </Link>
       </div>
 
-      {/* Create Button */}
+      {/* ➕ Create Button */}
       <Link
         to="/create"
         className="btn-gradient w-full flex flex-col items-center justify-center p-3 rounded-xl text-white font-medium shadow-md hover:opacity-90 transition"

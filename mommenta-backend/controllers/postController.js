@@ -2,45 +2,44 @@ import cloudinary from "../middleware/cloudinary.js";
 import Post from "../models/Post.js";
 import User from "../models/User.js";
 import fs from "fs";
-// import cloudinary from "../utils/cloudinary.js";
-// import Post from "../models/Post.js";
 
+// ==============================
+// Create a new post
+// ==============================
 export const createPost = async (req, res) => {
   try {
     const { caption } = req.body;
-    const userId = req.user.id; // from auth middleware
+    const userId = req.user.id;
     const files = req.files || [];
 
     if (!files.length) {
-      return res
-        .status(400)
-        .json({ msg: "Post must include at least one media item" });
+      return res.status(400).json({ msg: "Post must include at least one media item" });
     }
 
-    let media = [];
+    // Upload files to Cloudinary concurrently
+    const uploadPromises = files.map((file) =>
+      cloudinary.uploader
+        .upload(file.path, {
+          resource_type: "auto",
+          folder: "mommenta_posts",
+        })
+        .then((result) => {
+          fs.unlinkSync(file.path); // delete local temp file
+          return {
+            mediaUrl: result.secure_url,
+            mediaType: result.resource_type,
+            publicId: result.public_id,
+          };
+        })
+    );
 
-    // Upload all files (image/video) to Cloudinary
-    for (const file of files) {
-      const result = await cloudinary.uploader.upload(file.path, {
-        resource_type: "auto", // auto detects image or video
-        folder: "mommenta_posts",
-      });
-      
-      media.push({
-        mediaUrl: result.secure_url,
-        mediaType: result.resource_type, // "image" or "video"
-      });
-      // remove temp file
-      fs.unlinkSync(req.file.path);
-    }
-
-    // Extract hashtags from caption
+    const media = await Promise.all(uploadPromises);
     const hashtags = caption ? caption.match(/#\w+/g) || [] : [];
 
     const newPost = new Post({
       user: userId,
       caption,
-      media, // now properly structured
+      media,
       hashtags,
     });
 
@@ -54,20 +53,20 @@ export const createPost = async (req, res) => {
   }
 };
 
-// Get all posts (feed)
+// ==============================
+// Get Feed (Followed + Random)
+// ==============================
 export const getFeed = async (req, res) => {
   try {
-    // console.log(req, "mahish")
     const currentUser = await User.findById(req.user.id);
+    if (!currentUser) return res.status(404).json({ msg: "User not found" });
 
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // IDs of people the user follows + self
     const feedIds = [...currentUser.following, currentUser._id];
 
-    // Fetch posts from followed + self
     const followedPosts = await Post.find({ user: { $in: feedIds } })
       .populate("user", "username profilePic")
       .populate("comments.user", "username profilePic")
@@ -75,14 +74,13 @@ export const getFeed = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    // Fetch posts from *other* users (for variety)
     const otherPosts = await Post.find({ user: { $nin: feedIds } })
       .populate("user", "username profilePic")
       .populate("comments.user", "username profilePic")
       .sort({ createdAt: -1 })
       .limit(limit / 2);
 
-    // Mix them randomly
+    // Mix posts (followed + random)
     const mixedFeed = [];
     const maxLen = Math.max(followedPosts.length, otherPosts.length);
 
@@ -94,8 +92,7 @@ export const getFeed = async (req, res) => {
       }
     }
 
-    // Check if there are more posts for pagination
-    const totalPosts = await Post.countDocuments();
+    const totalPosts = await Post.countDocuments({ user: { $in: feedIds } });
     const hasMore = skip + limit < totalPosts;
 
     res.json({ posts: mixedFeed, hasMore });
@@ -105,42 +102,106 @@ export const getFeed = async (req, res) => {
   }
 };
 
-
-// Like or unlike post
+// ==============================
+// Like or Unlike a Post
+// ==============================
 export const likePost = async (req, res) => {
   try {
+    const userId = req.user.id;
     const post = await Post.findById(req.params.id);
+
     if (!post) return res.status(404).json({ msg: "Post not found" });
 
-    if (post.likes.includes(req.user)) {
-      post.likes = post.likes.filter((id) => id.toString() !== req.user);
+    const alreadyLiked = post.likes.includes(userId);
+
+    if (alreadyLiked) {
+      post.likes = post.likes.filter((id) => id.toString() !== userId);
     } else {
-      post.likes.push(req.user);
+      post.likes.push(userId);
     }
 
     await post.save();
-    res.json(post);
+    res.json({ msg: alreadyLiked ? "Unliked" : "Liked", likes: post.likes.length });
   } catch (err) {
+    console.error("Like Error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
 
-// Comment on a post
+// ==============================
+// Comment on a Post
+// ==============================
 export const commentOnPost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ msg: "Post not found" });
 
     const comment = {
-      user: req.user,
+      user: req.user.id,
       text: req.body.text,
+      createdAt: new Date(),
     };
 
     post.comments.push(comment);
     await post.save();
+    await post.populate("comments.user", "username profilePic");
 
     res.json(post);
   } catch (err) {
+    console.error("Comment Error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// ==============================
+// Edit a Post (caption only)
+// ==============================
+export const editPost = async (req, res) => {
+  try {
+    const { caption } = req.body;
+    const post = await Post.findById(req.params.id);
+
+    if (!post) return res.status(404).json({ msg: "Post not found" });
+    if (post.user.toString() !== req.user.id) {
+      return res.status(403).json({ msg: "Unauthorized" });
+    }
+
+    post.caption = caption || post.caption;
+    post.hashtags = caption ? caption.match(/#\w+/g) || [] : post.hashtags;
+
+    await post.save();
+    res.json(post);
+  } catch (err) {
+    console.error("Edit Error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// ==============================
+// Delete a Post (with Cloudinary cleanup)
+// ==============================
+export const deletePost = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ msg: "Post not found" });
+
+    if (post.user.toString() !== req.user.id) {
+      return res.status(403).json({ msg: "Unauthorized" });
+    }
+
+    // Delete media from Cloudinary
+    for (const item of post.media) {
+      if (item.publicId) {
+        await cloudinary.uploader.destroy(item.publicId, {
+          resource_type: item.mediaType || "image",
+        });
+      }
+    }
+
+    await post.deleteOne();
+    res.json({ msg: "Post deleted successfully" });
+  } catch (err) {
+    console.error("Delete Error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };

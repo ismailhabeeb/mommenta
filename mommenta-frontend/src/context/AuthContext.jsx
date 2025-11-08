@@ -8,25 +8,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // const [preloading, setPreloading] = useState(true);
-
-
- 
-  // useEffect(() => {
-  //   const firstVisit = localStorage.getItem("firstVisit");
-
-  //   if (!firstVisit) {
-  //     // First visit: show preloader
-  //     localStorage.setItem("firstVisit", "true");
-  //     const timer = setTimeout(() => setPreloading(false), 2000); // 2-second preloader
-  //     return () => clearTimeout(timer);
-  //   } else {
-  //     // Not first visit: skip preloader
-  //     setPreloading(false);
-  //   }
-  // }, []);
-
-
+  
   useEffect(() => {
   
     const initAuth = async () => {

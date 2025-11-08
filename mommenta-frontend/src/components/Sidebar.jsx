@@ -16,7 +16,7 @@ export default function Sidebar({ userD }) {
   return (
     <div className="sticky top-6 space-y-6">
       {/* Profile Preview */}
-      <Link to={`/profile/${userD.username}`}>
+      <Link to={`/profile/${userD._id}`}>
 
         <div className="flex items-center space-x-3">
           <img

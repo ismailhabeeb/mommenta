@@ -37,7 +37,7 @@ export default function Routerr() {
           }
         />
         <Route
-          path="/profile/:username"
+          path="/profile/:id"
           element={
             <ProtectedRoute>
               <ProfilePage />
