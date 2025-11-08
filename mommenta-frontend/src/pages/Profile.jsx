@@ -100,7 +100,7 @@ export default function ProfilePage() {
   const isOwner = currentUser?._id === profile._id;
 
   return (
-    <div className="relative max-w-4xl mx-auto px-4 py-6">
+    <div className="relative max-w-4xl mx-auto px-4 py-6 dark:text-gray-300">
       {/* Header */}
       <div className="flex items-center gap-8">
         <img
@@ -161,7 +161,7 @@ export default function ProfilePage() {
             </span>
           </div>
 
-          <div className="mt-3">
+          <div className="mt-3 dark:text-gray-300">
             <p className="font-medium">{profile.fullName || "No name provided"}</p>
             {profile.bio && <p className="text-sm">{profile.bio}</p>}
             {profile.website && (
@@ -182,8 +182,8 @@ export default function ProfilePage() {
       <div className="border-t mt-6" />
 
       {/* Tabs */}
-      <div className="flex justify-center gap-12 mt-3 text-sm font-medium">
-        <button className="pb-2 border-b-2 border-brand">Posts</button>
+      <div className="flex justify-center gap-12 mt-3 text-sm font-medium dark:text-gray-300">
+        <button className="pb-2 border-b-2 border-brand dark:text-gray-300">Posts</button>
         <button className="pb-2 border-b-2 border-transparent hover:border-gray-400">
           Saved
         </button>

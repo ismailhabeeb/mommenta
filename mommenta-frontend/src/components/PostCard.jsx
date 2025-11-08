@@ -34,7 +34,7 @@ function renderCaption(text = "") {
   );
 }
 
-export default function PostCard({ post,currentusername, onUpdateComments }) {
+export default function PostCard({ post, currentusername, onUpdateComments }) {
   const [comment, setComment] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [expandedComments, setExpandedComments] = useState({});
@@ -92,7 +92,7 @@ export default function PostCard({ post,currentusername, onUpdateComments }) {
         entries.forEach((entry) => {
           const video = entry.target;
           if (entry.isIntersecting) {
-            video.play().catch(() => {});
+            video.play().catch(() => { });
           } else {
             video.pause();
           }
@@ -107,7 +107,7 @@ export default function PostCard({ post,currentusername, onUpdateComments }) {
   }, [mediaItems]);
 
   return (
-    <div className="bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden mb-1 w-full group transition-all">
+    <div className="bg-white dark:text-gray-300 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden mb-1 w-full group transition-all">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <Link to={`/profile/${post.user?._id}`} className="flex items-center">
@@ -205,11 +205,10 @@ export default function PostCard({ post,currentusername, onUpdateComments }) {
                 {mediaItems.map((m, i) => (
                   <SwiperSlide key={i} className="cursor-pointer">
                     <div
-                      className={`rounded-lg border-2 w-fit ${
-                        i === activeIndex
+                      className={`rounded-lg border-2 w-fit ${i === activeIndex
                           ? "border-white"
                           : "border-transparent opacity-80 hover:opacity-100"
-                      } transition`}
+                        } transition`}
                     >
                       {m.mediaType?.startsWith("video") ? (
                         <video
@@ -234,8 +233,8 @@ export default function PostCard({ post,currentusername, onUpdateComments }) {
       )}
 
       {/* Actions */}
-      <div className="flex justify-between items-center px-4 py-3">
-        <div className="flex space-x-4 text-gray-900 dark:text-gray-100">
+      <div className="flex justify-between items-center px-4 py-3 ">
+        <div className="flex space-x-4 text-gray-900 dark:text-gray-100 bg-white/30 dark:bg-gray-900/30 backdrop-blur-lg border border-gray-200/40 dark:border-gray-700/40 shadow-lg rounded-3xl px-2 py-1">
           <Icon path={mdiHeartOutline} size={1.3} className="cursor-pointer hover:text-pink-500" />
           <Icon
             path={mdiCommentOutline}
@@ -245,7 +244,9 @@ export default function PostCard({ post,currentusername, onUpdateComments }) {
           />
           <Icon path={mdiShareOutline} size={1.3} className="cursor-pointer hover:text-green-500" />
         </div>
-        <Icon path={mdiBookmarkOutline} size={1.3} className="cursor-pointer hover:text-purple-500" />
+        <div className="bg-white/30 dark:bg-gray-900/30 backdrop-blur-lg border border-gray-200/40 dark:border-gray-700/40 shadow-lg rounded-3xl px-2 py-1">
+          <Icon path={mdiBookmarkOutline} size={1.3} className="cursor-pointer hover:text-purple-500 " />
+        </div>
       </div>
 
       {/* Caption */}
@@ -294,11 +295,10 @@ export default function PostCard({ post,currentusername, onUpdateComments }) {
           <button
             onClick={handlePostComment}
             disabled={!comment.trim()}
-            className={`ml-2 text-sm font-semibold ${
-              comment.trim()
+            className={`ml-2 text-sm font-semibold ${comment.trim()
                 ? "text-blue-500"
                 : "text-gray-400 cursor-default"
-            }`}
+              }`}
           >
             Post
           </button>

@@ -51,7 +51,9 @@ export const startConversation = async (req, res) => {
 // ✅ Get all user’s conversations
 export const getConversations = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id;
+    // const userId2 = req.user;
+    // console.log("👉 DEBUG IDs:", { userId2});
 
     const chats = await Chat.find({ members: userId })
       .populate("members", "username profilePic")
@@ -94,7 +96,6 @@ export const sendMessage = async (req, res) => {
     const { chatId } = req.params;
     const { text } = req.body;
     const senderId = req.user.id;
-    console.log("👉 DEBUG IDs:", { chatId, text, senderId });
 
     const chat = await Chat.findById(chatId);
     if (!chat) return res.status(404).json({ message: "Chat not found" });

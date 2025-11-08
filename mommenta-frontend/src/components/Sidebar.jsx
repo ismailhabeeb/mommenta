@@ -14,7 +14,7 @@ export default function Sidebar({ userD }) {
 //     }
 //   }, [user]);
   return (
-    <div className="sticky top-6 space-y-6">
+    <div className="sticky top-6 space-y-6 dark:text-gray-300">
       {/* Profile Preview */}
       <Link to={`/profile/${userD._id}`}>
 

@@ -2,6 +2,7 @@
 import { useEffect, useState, useContext } from "react";
 import { useSocket } from "../context/SocketContext";
 import { fetchConversations, getCurrentUser } from "../services";
+import { useAuth } from "../context/AuthContext";
 
 export default function ChatList({ onSelectChat, activeChatId }) {
   const [conversations, setConversations] = useState([]);
@@ -10,7 +11,9 @@ export default function ChatList({ onSelectChat, activeChatId }) {
   const [loading, setLoading] = useState(true);
 
   const socket = useSocket();
-  const currentUser = getCurrentUser();
+  // const currentUser = getCurrentUser();
+      const { user: currentUser } = useAuth();
+  
 
   // 🟢 Fetch conversations on mount
   useEffect(() => {
@@ -18,6 +21,7 @@ export default function ChatList({ onSelectChat, activeChatId }) {
       try {
         const { data } = await fetchConversations();
         setConversations(data);
+        console.log(data)
       } catch (err) {
         console.error("Error fetching conversations:", err);
       } finally {
@@ -94,18 +98,18 @@ export default function ChatList({ onSelectChat, activeChatId }) {
     return <div className="p-4 text-gray-500">No conversations yet</div>;
 
   return (
-    <div className="w-full md:w-80 border-r border-gray-200 h-full overflow-y-auto bg-white">
+    <div className="w-full md:w-80 border-r border-gray-200 h-full overflow-y-auto bg-white dark:bg-gray-900 dark:text-gray-100">
       <h2 className="p-4 text-xl font-semibold border-b">Chats</h2>
 
       {conversations.map((chat) => {
-        const otherUser = chat.members.find((m) => m._id !== currentUser?._id);
+        const otherUser = chat.members.find((m) => m._id !==  currentUser?._id );
         const lastMsg = chat.lastMessage?.text || "No messages yet";
 
         return (
           <div
             key={chat._id}
             onClick={() => onSelectChat(chat)}
-            className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-100 transition ${
+            className={`flex items-center  gap-3 p-3 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition ${
               activeChatId === chat._id ? "bg-gray-100" : ""
             }`}
           >

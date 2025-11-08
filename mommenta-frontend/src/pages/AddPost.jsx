@@ -14,41 +14,38 @@ export default function AddPost() {
     const textareaRef = useRef(null);
     const emojiPickerRef = useRef(null);
 
-    // Convert FileList -> Array and append
+    // Set page title on mount
+    useEffect(() => {
+        document.title = "Add New Post | MomentApp";
+    }, []);
+
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files || []);
         setMedia((prev) => [...prev, ...files]);
-        e.currentTarget.value = null; // reset input so same file can be chosen later
+        e.currentTarget.value = null; // reset input
     };
 
-    // Emoji click handler (emoji-picker-react passes { emoji } or emojiObject.emoji)
-    const handleEmojiClick = (emojiData /*, event */) => {
+    const handleEmojiClick = (emojiData) => {
         const emoji = emojiData?.emoji ?? emojiData;
         setCaption((p) => p + emoji);
-        // keep focus in textarea
         textareaRef.current?.focus();
         setShowEmoji(false);
     };
 
-    // Remove a selected media (optional little "x" control)
     const removeMediaAt = (idx) => {
         setMedia((prev) => prev.filter((_, i) => i !== idx));
     };
 
-    // Cleanup object URLs when media changes to avoid memory leaks
     useEffect(() => {
         return () => {
-            // revoke created object URLs on unmount
             media.forEach((f) => {
                 try {
                     URL.revokeObjectURL(f.preview);
                 } catch { }
             });
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Highlight hashtags for layered preview text
     const highlightHashtags = (text) =>
         text
             ? text.replace(/#(\w+)/g, `<span class="text-blue-500 font-semibold">#$1</span>`)
@@ -58,38 +55,40 @@ export default function AddPost() {
         e.preventDefault();
         if (!caption.trim() && media.length === 0) return;
 
-        // build FormData (backend expects FormData with field 'media')
         const formData = new FormData();
         formData.append("caption", caption);
         media.forEach((file) => formData.append("media", file));
 
         setLoading(true);
         try {
-            await createPost(formData); // backend handles Cloudinary and returns post
+            await createPost(formData);
             setCaption("");
             setMedia([]);
             toast.success("✅ Post uploaded successfully!");
         } catch (err) {
             console.error("Upload failed", err);
-            // show backend message if available
             const msg = err?.response?.data?.msg ?? "Failed to upload post";
             toast.error("❌ " + msg);
         } finally {
             sessionStorage.removeItem("homePosts");
             sessionStorage.removeItem("homeScrollY");
             sessionStorage.removeItem("homePage");
-
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex justify-center bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-black p-6">
+        <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-black p-6">
+            {/* Page header */}
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                Create a Post
+            </h1>
+
             <form
                 onSubmit={handleSubmit}
                 className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6 w-full max-w-2xl relative"
             >
-                {/* Caption + layered highlighted preview */}
+                {/* Caption + preview */}
                 <div className="relative w-full">
                     <div
                         className="absolute top-0 left-0 w-full p-3 pointer-events-none whitespace-pre-wrap break-words text-gray-400"
@@ -102,7 +101,6 @@ export default function AddPost() {
                         placeholder="What's happening?"
                         className="relative w-full resize-none outline-none p-3 pr-10 bg-transparent text-gray-900 dark:text-gray-100 caret-blue-500 min-h-[88px] max-h-44"
                     />
-                    {/* emoji button inside textarea */}
                     <button
                         type="button"
                         onClick={() => setShowEmoji((s) => !s)}
@@ -112,7 +110,6 @@ export default function AddPost() {
                         <Icon path={mdiEmoticonOutline} size={1} />
                     </button>
 
-                    {/* absolute emoji picker, positioned above textarea */}
                     {showEmoji && (
                         <div
                             ref={emojiPickerRef}
@@ -124,13 +121,11 @@ export default function AddPost() {
                     )}
                 </div>
 
-                {/* Media preview (Pinterest-style masonry using CSS columns) */}
+                {/* Media preview */}
                 {media.length > 0 && (
                     <div className="mt-4 columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
                         {media.map((file, idx) => {
-                            // create preview URL (don't call URL.createObjectURL repeatedly)
                             const preview = file.preview || URL.createObjectURL(file);
-                            // stash preview on file object to allow cleanup (non-immutable but ok for UI)
                             if (!file.preview) file.preview = preview;
 
                             return (
@@ -138,7 +133,6 @@ export default function AddPost() {
                                     key={idx}
                                     className="mb-3 break-inside-avoid relative rounded-xl overflow-hidden shadow-md hover:rotate-1 hover:scale-[1.02] transition-transform"
                                 >
-                                    {/* remove button */}
                                     <button
                                         type="button"
                                         onClick={() => removeMediaAt(idx)}
@@ -158,7 +152,7 @@ export default function AddPost() {
                     </div>
                 )}
 
-                {/* Actions: image, video, camera, and Post button */}
+                {/* Actions */}
                 <div className="flex items-center justify-between mt-4">
                     <div className="flex gap-4">
                         <label className="cursor-pointer" aria-label="Add images">
