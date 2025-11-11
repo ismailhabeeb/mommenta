@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { useSocket } from "../context/SocketContext";
 import { fetchMessages, sendMessage, markMessagesRead } from "../services";
 import { useAuth } from "../context/AuthContext";
+import EmojiPicker from "emoji-picker-react";
 import Icon from "@mdi/react";
 import {
   mdiArrowLeft,
   mdiSend,
   mdiEmoticonOutline,
   mdiPaperclip,
+  mdiClose,
+  mdiFileOutline,
 } from "@mdi/js";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,6 +20,8 @@ export default function ChatRoom({ activeChat, onBack }) {
   const [loading, setLoading] = useState(true);
   const [isTyping, setIsTyping] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [viewer, setViewer] = useState(null); // 🧩 Modal viewer
   const { user: currentUser } = useAuth();
   const socket = useSocket();
   const bottomRef = useRef(null);
@@ -68,7 +73,7 @@ export default function ChatRoom({ activeChat, onBack }) {
     };
   }, [socket, chatId]);
 
-  // ✍️ Handle typing
+  // ✍️ Typing
   const handleTyping = (e) => {
     setText(e.target.value);
     if (socket && chatId) {
@@ -83,31 +88,36 @@ export default function ChatRoom({ activeChat, onBack }) {
   // 🚀 Send message
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() && files.length === 0) return;
 
     try {
-      const { data } = await sendMessage(chatId, { text });
+      const formData = new FormData();
+      formData.append("text", text);
+      files.forEach((file) => formData.append("files", file));
+
+      const { data } = await sendMessage(chatId, formData);
       setMessages((prev) => [...prev, data]);
       setText("");
+      setFiles([]);
       scrollToBottom();
     } catch (err) {
       console.error("Error sending message:", err);
     }
   };
 
-  // 📎 Handle file upload (placeholder)
+  // 📎 Handle multiple file uploads
   const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      console.log("File selected:", file.name);
-      // Upload logic later...
-    }
+    const selected = Array.from(e.target.files);
+    setFiles((prev) => [...prev, ...selected]);
   };
 
-  // 😀 Toggle emoji picker (placeholder)
-  const handleEmojiSelect = (emoji) => {
-    setText((prev) => prev + emoji);
-    setShowEmoji(false);
+  const removeFile = (index) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // 😀 Emoji Picker
+  const handleEmojiClick = (emojiData) => {
+    setText((prev) => prev + emojiData.emoji);
   };
 
   // 🔽 Scroll helper
@@ -117,10 +127,8 @@ export default function ChatRoom({ activeChat, onBack }) {
       100
     );
   };
-
   useEffect(scrollToBottom, [messages]);
 
-  // 🧩 No chat selected
   if (!activeChat)
     return (
       <motion.div
@@ -175,7 +183,7 @@ export default function ChatRoom({ activeChat, onBack }) {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto max-h-[calc(80vh-150px)] px-4 py-3 space-y-3 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
+        <div className="flex-1 overflow-y-auto max-h-[calc(80vh-150px)] px-4 py-3 space-y-3 scrollbar-hide">
           {loading ? (
             <p className="text-gray-500 dark:text-gray-400">
               Loading messages...
@@ -197,11 +205,46 @@ export default function ChatRoom({ activeChat, onBack }) {
                   <div
                     className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm shadow transition ${
                       msg.sender._id === currentUser._id
-                        ? "bg-gradient-to-r from-brand-gradientStart to-brand-gradientEnd text-white rounded-br-none"
+                        ? "bg-brand text-white rounded-br-none"
                         : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none"
                     }`}
                   >
-                    {msg.text}
+                    {msg.text && <p>{msg.text}</p>}
+
+                    {/* File Previews */}
+                    {msg.files &&
+                      msg.files.map((file, i) => {
+                        const isImage = file.type?.startsWith("image/");
+                        const isVideo = file.type?.startsWith("video/");
+                        return (
+                          <div key={i} className="mt-2">
+                            {isImage ? (
+                              <img
+                                src={file.url}
+                                alt=""
+                                onClick={() => setViewer(file.url)}
+                                className="rounded-lg cursor-pointer max-h-48 object-cover hover:opacity-90 transition"
+                              />
+                            ) : isVideo ? (
+                              <video
+                                src={file.url}
+                                controls
+                                onClick={() => setViewer(file.url)}
+                                className="rounded-lg cursor-pointer max-h-48"
+                              />
+                            ) : (
+                              <a
+                                href={file.url}
+                                onClick={() => setViewer(file.url)}
+                                className="underline text-xs break-words"
+                              >
+                                {file.name || "View document"}
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+
                     <div className="text-[10px] text-gray-400 mt-1 text-right">
                       {new Date(msg.createdAt).toLocaleTimeString([], {
                         hour: "2-digit",
@@ -216,14 +259,94 @@ export default function ChatRoom({ activeChat, onBack }) {
           <div ref={bottomRef}></div>
         </div>
 
+        {/* Multiple File Preview before send */}
+        {files.length > 0 && (
+          <div className="absolute bottom-20 left-0 right-0 flex flex-wrap gap-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+            {files.map((file, i) => {
+              const preview = URL.createObjectURL(file);
+              return (
+                <div
+                  key={i}
+                  className="relative w-16 h-16 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden"
+                >
+                  {file.type.startsWith("image/") ? (
+                    <img
+                      src={preview}
+                      alt=""
+                      className="object-cover w-full h-full"
+                    />
+                  ) : file.type.startsWith("video/") ? (
+                    <video src={preview} className="object-cover w-full h-full" />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full text-xs text-gray-500 dark:text-gray-300">
+                      <Icon path={mdiFileOutline} size={1} />
+                    </div>
+                  )}
+                  <button
+                    onClick={() => removeFile(i)}
+                    className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full hover:bg-black"
+                  >
+                    <Icon path={mdiClose} size={0.7} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Modal File Viewer */}
+        <AnimatePresence>
+          {viewer && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+              onClick={() => setViewer(null)}
+            >
+              <div
+                className="relative max-w-3xl w-full px-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setViewer(null)}
+                  className="absolute top-4 right-4 text-white bg-black/60 p-2 rounded-full hover:bg-black"
+                >
+                  <Icon path={mdiClose} size={1} />
+                </button>
+                {viewer.endsWith(".mp4") ? (
+                  <video src={viewer} controls className="w-full rounded-lg" />
+                ) : viewer.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                  <img
+                    src={viewer}
+                    alt="viewer"
+                    className="w-full rounded-lg object-contain max-h-[80vh]"
+                  />
+                ) : (
+                  <iframe
+                    src={viewer}
+                    className="w-full h-[80vh] rounded-lg bg-white"
+                    title="Document Viewer"
+                  ></iframe>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Input Area */}
         <form
           onSubmit={handleSend}
-          className="flex items-center gap-3 p-3 border-t bg-white dark:bg-gray-800 dark:border-gray-700 sticky bottom-0"
+          className="flex items-end gap-3 p-3 border-t bg-white dark:bg-gray-800 dark:border-gray-700 sticky bottom-0"
         >
           <label className="text-gray-500 dark:text-gray-300 hover:text-brand transition cursor-pointer">
             <Icon path={mdiPaperclip} size={1} />
-            <input type="file" className="hidden" onChange={handleFileUpload} />
+            <input
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileUpload}
+            />
           </label>
 
           <button
@@ -234,34 +357,32 @@ export default function ChatRoom({ activeChat, onBack }) {
             <Icon path={mdiEmoticonOutline} size={1} />
           </button>
 
-          <input
-            type="text"
+          <textarea
             value={text}
             onChange={handleTyping}
             placeholder="Type a message..."
-            className="flex-1 border rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-brand/30 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700"
+            className="flex-1 max-h-[120px] min-h-[45px] border rounded-lg px-4 py-2 resize-none outline-none focus:ring-2 focus:ring-brand/30 dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 scrollbar-hide"
           />
 
           <button
             type="submit"
-            className="bg-gradient-to-r from-brand-gradientStart to-brand-gradientEnd hover:opacity-90 text-white p-2 rounded-full transition shadow-sm"
+            className="bg-brand hover:bg-brand-accent text-white p-2 rounded-full transition shadow-sm"
           >
             <Icon path={mdiSend} size={1} />
           </button>
         </form>
 
-        {/* Emoji Picker (Placeholder UI) */}
+        {/* Emoji Picker */}
         {showEmoji && (
-          <div className="absolute bottom-16 left-4 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl shadow-lg p-3 z-20 text-lg flex gap-2 flex-wrap max-w-[300px]">
-            {["😀", "😂", "😍", "😎", "🥰", "😅", "😭", "🤔"].map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => handleEmojiSelect(emoji)}
-                className="hover:scale-110 transition"
-              >
-                {emoji}
-              </button>
-            ))}
+          <div className="absolute bottom-16 left-4 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl shadow-lg z-20">
+            <EmojiPicker
+              theme={
+                document.documentElement.classList.contains("dark")
+                  ? "dark"
+                  : "light"
+              }
+              onEmojiClick={handleEmojiClick}
+            />
           </div>
         )}
       </motion.div>
