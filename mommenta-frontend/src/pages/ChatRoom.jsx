@@ -92,8 +92,8 @@ export default function ChatRoom({ activeChat, onBack }) {
 
     try {
       const formData = new FormData();
-      formData.append("text", text);
-      files.forEach((file) => formData.append("files", file));
+     formData.append("text", text ? text : "empty text");
+      // files.forEach((file) => formData.append("files", file));
 
       const { data } = await sendMessage(chatId, formData);
       setMessages((prev) => [...prev, data]);
