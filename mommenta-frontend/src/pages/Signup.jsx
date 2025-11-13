@@ -44,7 +44,7 @@ export default function Signup() {
       });
 
       // navigate to protected area
-      navigate("/");
+      navigate("/home");
     } catch (err) {
       setError(err.response?.data?.msg || err.response?.data?.message || err.message || "Signup failed");
     } finally {

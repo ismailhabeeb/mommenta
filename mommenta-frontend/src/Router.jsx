@@ -15,13 +15,13 @@ export default function Routerr() {
     <BrowserRouter>
       <Routes>
         {/* Public */}
-        <Route path="/land" element={<Landing />} />
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
         {/* Protected */}
         <Route
-          path="/"
+          path="/home"
           element={
             <ProtectedRoute>
               <Home />

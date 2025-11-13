@@ -8,10 +8,12 @@ import {
     mdiAccountPlus,
     mdiLogout,
 } from "@mdi/js";
+import { useNavigate } from "react-router-dom";
 
 export default function Settings() {
     const [notifications, setNotifications] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
+  const navigate = useNavigate();
 
     // Initialize theme on page load
     useEffect(() => {
@@ -38,7 +40,15 @@ export default function Settings() {
 
     // Placeholder handlers
     const handleAddAccount = () => alert("Add Account clicked!");
-    const handleLogout = () => alert("Logout clicked!");
+    // const handleLogout = () => alert("Logout clicked!");
+
+    const handleLogout = () => {
+    // 1. Remove token from localStorage
+    localStorage.removeItem("token"); 
+
+    // 2. Redirect to login page
+    navigate("/login");
+  };
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 md:p-6 flex flex-col gap-6">

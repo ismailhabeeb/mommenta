@@ -25,7 +25,7 @@ export default function Login() {
     try {
       const res = await login(formData);
       console.log("Login success:", res);
-      navigate("/"); // 👈 redirect after login success
+      navigate("/home"); // 👈 redirect after login success
     } catch (err) {
       setError(err.response?.data?.msg || "Login failed");
     } finally {
