@@ -97,6 +97,7 @@ export default function ChatRoom({ activeChat, onBack }) {
 
       const { data } = await sendMessage(chatId, formData);
       setMessages((prev) => [...prev, data]);
+      console.log("Message sent:", data);
       setText("");
       setFiles([]);
       scrollToBottom();
