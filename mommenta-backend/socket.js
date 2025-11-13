@@ -1,12 +1,30 @@
 import { Server } from "socket.io";
 
 export const initSocket = (server, app) => {
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "https://mommenta.vercel.app"
+    // process.env.FRONTEND_URL
+  ];
+  // const io = new Server(server, {
+  //   cors: {
+  //     origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  //     credentials: true,
+  //   },
+  // });
+
   const io = new Server(server, {
-    cors: {
-      origin: process.env.FRONTEND_URL || "http://localhost:5173",
-      credentials: true,
+  cors: {
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS policy: origin ${origin} not allowed`));
+      }
     },
-  });
+    credentials: true,
+  },
+});
 
   const onlineUsers = new Map();
 
@@ -48,7 +66,7 @@ export const initSocket = (server, app) => {
           createdAt: new Date(),
         });
       }
-    // typing
+      // typing
 
       socket.on("typing", ({ chatId, senderId, receiverId }) => {
         const receiverSocket = onlineUsers.get(receiverId);
