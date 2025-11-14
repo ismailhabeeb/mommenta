@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, use } from "react";
 import InfiniteScroll from "react-infinite-scroll-component";
 
 import StoryBar from "../components/StoryBar";
@@ -9,11 +9,11 @@ import DesktopNav from "../components/DesktopNav";
 import TopBar from "../components/TopBar";
 import SkeletonLoader from "../components/SkeletonLoader";
 
-import { fetchPosts } from "../services";
-import { useAuth } from "../context/AuthContext";
+import { fetchPosts, getCurrentUser } from "../services";
+import { useAuth } from "../context/AuthContext"; 
 
 export default function Home() {
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
   const [posts, setPosts] = useState(() => {
     // ✅ Restore posts from session storage if available
@@ -24,8 +24,24 @@ export default function Home() {
   const [loading, setLoading] = useState(posts.length === 0);
   const [page, setPage] = useState(() => Number(sessionStorage.getItem("homePage")) || 1);
   const [hasMore, setHasMore] = useState(true);
+  const [user, setUser] = useState({});
 
   const scrollContainerRef = useRef(null);
+
+
+ useEffect(() => {
+  const fetchUser = async () => {
+    try {
+      const data = await getCurrentUser();
+      setUser(data.data);
+      console.log("Fetched user:", data.data);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+    }
+  };
+
+  fetchUser();
+}, []);
 
   // Fetch posts with pagination
   const loadPosts = async (nextPage = page) => {
@@ -49,6 +65,8 @@ export default function Home() {
       setLoading(false);
     }
   };
+ 
+
 
   // Load posts if not already cached
   useEffect(() => {

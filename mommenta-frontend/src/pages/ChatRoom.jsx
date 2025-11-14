@@ -88,23 +88,38 @@ export default function ChatRoom({ activeChat, onBack }) {
   // 🚀 Send message
   const handleSend = async (e) => {
     e.preventDefault();
+
+    // block empty send
     if (!text.trim() && files.length === 0) return;
 
+    const formData = new FormData();
+    formData.append("text", text?.trim() || "");
+
+    files.forEach((file) => formData.append("media", file));
+
     try {
-      const formData = new FormData();
-     formData.append("text", text ? text : "empty text");
-      // files.forEach((file) => formData.append("files", file));
+      // optional: show sending state
+      // setSending(true);
 
       const { data } = await sendMessage(chatId, formData);
+
+      // append message to UI
       setMessages((prev) => [...prev, data]);
-      console.log("Message sent:", data);
+
+      // reset UI
       setText("");
       setFiles([]);
+
       scrollToBottom();
     } catch (err) {
       console.error("Error sending message:", err);
+      // toast.error("Failed to send message");
+    } finally {
+      // setSending(false);
     }
   };
+
+
 
   // 📎 Handle multiple file uploads
   const handleFileUpload = (e) => {
@@ -141,6 +156,48 @@ export default function ChatRoom({ activeChat, onBack }) {
       </motion.div>
     );
 
+
+  // ----------------------------------------------------------------
+  // MEDIA VIEWER CONTENT
+  // ----------------------------------------------------------------
+  const renderMedia = (m) => {
+    if (!m.media) return null;
+
+    return m.media.map((file, i) => {
+      const type = file.mediaType;
+
+      return (
+        <div key={i} className="mt-2">
+          {type === "image" && (
+            <img
+              src={file.mediaUrl}
+              className="w-48 rounded-xl cursor-pointer"
+              onClick={() => setViewer(file)}
+            />
+          )}
+
+          {type === "video" && (
+            <video
+              src={file.mediaUrl}
+              controls
+              className="w-48 rounded-xl cursor-pointer"
+              onClick={() => setViewer(file)}
+            />
+          )}
+
+          {type !== "image" && type !== "video" && (
+            <a
+              href={file.mediaUrl}
+              target="_blank"
+              className="block p-2 bg-gray-200 rounded-lg underline"
+            >
+              {file.mediaUrl.split("/").pop()}
+            </a>
+          )}
+        </div>
+      );
+    });
+  };
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -184,7 +241,7 @@ export default function ChatRoom({ activeChat, onBack }) {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto max-h-[calc(80vh-150px)] px-4 py-3 space-y-3 scrollbar-hide">
+        <div className="flex-1 overflow-y-auto min-h-[calc(78vh-145px)] max-h-[calc(80vh-150px)] px-4 py-3 space-y-3 scrollbar-hide">
           {loading ? (
             <p className="text-gray-500 dark:text-gray-400">
               Loading messages...
@@ -197,54 +254,19 @@ export default function ChatRoom({ activeChat, onBack }) {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
-                  className={`flex ${
-                    msg.sender._id === currentUser._id
-                      ? "justify-end"
-                      : "justify-start"
-                  }`}
+                  className={`flex ${msg.sender._id === currentUser._id
+                    ? "justify-end"
+                    : "justify-start"
+                    }`}
                 >
                   <div
-                    className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm shadow transition ${
-                      msg.sender._id === currentUser._id
-                        ? "bg-brand text-white rounded-br-none"
-                        : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none"
-                    }`}
+                    className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm shadow transition ${msg.sender._id === currentUser._id
+                      ? "bg-brand text-white rounded-br-none"
+                      : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none"
+                      }`}
                   >
                     {msg.text && <p>{msg.text}</p>}
-
-                    {/* File Previews */}
-                    {msg.files &&
-                      msg.files.map((file, i) => {
-                        const isImage = file.type?.startsWith("image/");
-                        const isVideo = file.type?.startsWith("video/");
-                        return (
-                          <div key={i} className="mt-2">
-                            {isImage ? (
-                              <img
-                                src={file.url}
-                                alt=""
-                                onClick={() => setViewer(file.url)}
-                                className="rounded-lg cursor-pointer max-h-48 object-cover hover:opacity-90 transition"
-                              />
-                            ) : isVideo ? (
-                              <video
-                                src={file.url}
-                                controls
-                                onClick={() => setViewer(file.url)}
-                                className="rounded-lg cursor-pointer max-h-48"
-                              />
-                            ) : (
-                              <a
-                                href={file.url}
-                                onClick={() => setViewer(file.url)}
-                                className="underline text-xs break-words"
-                              >
-                                {file.name || "View document"}
-                              </a>
-                            )}
-                          </div>
-                        );
-                      })}
+                    {renderMedia(msg)}
 
                     <div className="text-[10px] text-gray-400 mt-1 text-right">
                       {new Date(msg.createdAt).toLocaleTimeString([], {
@@ -390,3 +412,5 @@ export default function ChatRoom({ activeChat, onBack }) {
     </AnimatePresence>
   );
 }
+
+

@@ -13,9 +13,17 @@ const messageSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    text: { type: String, required: true },
+    text: { type: String, default: "" },   // <-- FIXED
     read: { type: Boolean, default: false },
-    readAt: { type: Date }, // 📌 When the message was read
+
+    media: [
+      {
+        mediaUrl: { type: String, required: true },
+        mediaType: { type: String, required: true },  // <-- FIXED
+      }
+    ],
+
+    readAt: { type: Date },
   },
   { timestamps: true }
 );

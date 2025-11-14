@@ -1,6 +1,8 @@
 import Chat from "../models/Chat.js";
 import Message from "../models/Message.js";
 import User from "../models/User.js";
+import cloudinary from "../middleware/cloudinary.js";
+import fs from "fs";
 
 // ✅ Start a new conversation or return existing one
 export const startConversation = async (req, res) => {
@@ -98,14 +100,43 @@ export const sendMessage = async (req, res) => {
     const { text } = req.body;
     const senderId = req.user.id;
 
+    let media = []; // <-- FIX 1: declare media globally
+
+    const files = req.files || [];
+
+    if (files.length > 0) {
+      // Upload files to Cloudinary concurrently
+      const uploadPromises = files.map((file) =>
+        cloudinary.uploader
+          .upload(file.path, {
+            resource_type: "auto",  // auto supports video, pdf, docs, images
+            folder: "mommenta_messages",
+          })
+          .then((result) => {
+            fs.unlinkSync(file.path); // delete temp file
+            return {
+              mediaUrl: result.secure_url,
+              mediaType: result.resource_type, // image, video, raw
+              publicId: result.public_id,
+            };
+          })
+      );
+
+      media = await Promise.all(uploadPromises); // <-- FIX 2: assign to global media
+    }
+
     const chat = await Chat.findById(chatId);
     if (!chat) return res.status(404).json({ message: "Chat not found" });
 
+    // Save message
     const message = await Message.create({
-      chatId: chatId,
+      chatId,
       sender: senderId,
-      text,
+      text: text || "",
+      media, // <-- now always defined (empty array or filled array)
     });
+
+    // Update last message
     chat.lastMessage = message._id;
     await chat.save();
 
@@ -114,28 +145,24 @@ export const sendMessage = async (req, res) => {
       "username profilePic"
     );
 
-    // 🔔 Real-time emission
+    // Real-time socket emission
     const io = req.app.get("io");
     const onlineUsers = req.app.get("onlineUsers");
-    // console.log(senderId)
-    // const receiverId = chat.members.filter(
-    //   (id) => id.toString() !== senderId.toString()
-    // );
-
-    console.log("🧩 Chat members before filter:", chat.members?.map(m => m?._id || m));
 
     const receiverId = chat.members
       .filter(Boolean)
       .map((m) => (m._id ? m._id.toString() : m.toString()))
       .find((id) => id !== senderId.toString());
 
-    const receiverSocket = onlineUsers?.get(receiverId?.toString());
+    const receiverSocket = onlineUsers?.get(receiverId);
+
     if (receiverSocket && io) {
       io.to(receiverSocket).emit("receiveMessage", {
         _id: message._id,
         chatId,
         senderId,
         text,
+        media,
         createdAt: message.createdAt,
       });
     }
@@ -146,6 +173,7 @@ export const sendMessage = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 // ✅ Mark messages as read
 export const markMessagesRead = async (req, res) => {

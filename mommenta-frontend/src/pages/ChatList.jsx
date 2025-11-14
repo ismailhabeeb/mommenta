@@ -116,7 +116,7 @@ export default function ChatList({ onSelectChat, activeChatId }) {
             {/* Avatar + Online status */}
             <div className="relative">
               <img
-                src={otherUser?.profilePic || "/default-avatar.png"}
+                src={otherUser?.profilePic || "https://api.dicebear.com/9.x/thumbs/svg?seed=placeholder"}
                 alt={otherUser?.username}
                 className="w-10 h-10 rounded-full object-cover"
               />
