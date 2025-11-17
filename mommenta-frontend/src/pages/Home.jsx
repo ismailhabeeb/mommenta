@@ -107,7 +107,7 @@ export default function Home() {
       {/* Center Feed */}
       <div className="flex justify-center w-full pt-4 pb-16">
         <div
-          className="flex flex-col max-w-2xl w-full mx-6 lg:mx-0 lg:ml-80 lg:mr-32 space-y-6 overflow-y-auto"
+          className="flex flex-col max-w-2xl w-full mx-1 lg:mx-0 lg:ml-80 lg:mr-32 space-y-6 overflow-y-auto"
           ref={scrollContainerRef}
         >
           <StoryBar />

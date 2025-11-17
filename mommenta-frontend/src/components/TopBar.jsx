@@ -5,6 +5,7 @@ import logo from "../assets/images/logo.png";
 import ChatList from "../pages/ChatList";
 import ChatRoom from "../pages/ChatRoom";
 import { useChatDrawer } from "../context/ChatDrawerContext";
+import LogoAnimated from "./Logo";
 
 export default function TopBar() {
   const { isDrawerOpen, activeChat, setActiveChat, openChatDrawer, closeChat } =
@@ -23,7 +24,12 @@ export default function TopBar() {
       <div className="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-900 shadow-md flex items-center justify-between px-6 z-50">
         {/* Logo */}
         <div className="flex items-center gap-3">
-          <img src={logo} alt="Mommenta" className="w-10 h-10" />
+          <LogoAnimated
+            size={50}
+            strokeWidth={10}
+            className="w-20 h-20 sm:w-24 sm:h-24"
+          />
+          {/* <img src={logo} alt="Mommenta" className="w-10 h-10" /> */}
           <span className="font-bold text-xl text-gray-800 dark:text-gray-100">
             Mommenta
           </span>

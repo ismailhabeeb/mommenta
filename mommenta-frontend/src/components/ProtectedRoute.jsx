@@ -8,7 +8,9 @@ export default function ProtectedRoute({ children }) {
 
   // After preload → show skeleton while fetching session
   if (loading) {
-    return <h1>Fetching User Data .......</h1>;
+    return <div>      
+      <SkeletonLoader className="h-8 w-48 mx-auto" />
+    </div>;
   }
 
   if (!user) {

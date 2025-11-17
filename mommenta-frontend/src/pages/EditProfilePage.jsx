@@ -73,7 +73,7 @@ export default function EditProfilePage() {
         <div className="flex flex-col items-center">
           <label htmlFor="profilePic" className="cursor-pointer relative group">
             <img
-              src={preview || "/default-avatar.png"}
+              src={preview || "https://api.dicebear.com/9.x/thumbs/svg?seed=placeholder"}
               alt="Preview"
               className="w-28 h-28 rounded-full object-cover border-4 border-brand transition-transform group-hover:scale-105"
             />

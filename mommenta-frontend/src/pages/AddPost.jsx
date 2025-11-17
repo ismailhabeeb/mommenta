@@ -5,6 +5,7 @@ import Icon from "@mdi/react";
 import { mdiImage, mdiVideo, mdiCamera, mdiEmoticonOutline } from "@mdi/js";
 import toast from "react-hot-toast";
 import { createPost } from "../services"; // must accept FormData and attach token in request
+import { useNavigate } from "react-router-dom";
 
 export default function AddPost() {
     const [caption, setCaption] = useState("");
@@ -13,6 +14,7 @@ export default function AddPost() {
     const [loading, setLoading] = useState(false);
     const textareaRef = useRef(null);
     const emojiPickerRef = useRef(null);
+  const navigate = useNavigate();
 
     // Set page title on mount
     useEffect(() => {
@@ -65,10 +67,12 @@ export default function AddPost() {
             setCaption("");
             setMedia([]);
             toast.success("✅ Post uploaded successfully!");
+      navigate("/home");
+
         } catch (err) {
             console.error("Upload failed", err);
             const msg = err?.response?.data?.msg ?? "Failed to upload post";
-            toast.error("❌ " + msg);
+            toast.error("❌ " + msg); 
         } finally {
             sessionStorage.removeItem("homePosts");
             sessionStorage.removeItem("homeScrollY");

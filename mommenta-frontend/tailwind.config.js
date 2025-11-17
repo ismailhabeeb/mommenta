@@ -9,15 +9,23 @@ module.exports = {
           DEFAULT: "#7C3AED",
           accent: "#EC4899",
           gradientStart: "#7C3AED",
-          gradientEnd: "#EC4899",
+            gradientBetween: "#974BE4", // new in-between color
+          gradientMid: "#B77CF0",    // new lighter mid color
+          gradientEnd: "#E1C7FB",    // new lighter end color
+          bgboard: "#B77CF0",
         },
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui"],
         heading: ["Poppins", "ui-sans-serif", "system-ui"],
       },
+      // backgroundColor: {
+      //   "brand-gradient": "linear-gradient(to right, #7C3AED, #B77CF0, #E1C7FB)", // updated gradient
+      // },
       backgroundImage: {
         "brand-gradient": "linear-gradient(to right, #7C3AED, #EC4899)",
+        "brand-gradient2": "linear-gradient(to right, #7C3AED, #B77CF0, #E1C7FB)", // updated gradient
+
       },
     },
   },

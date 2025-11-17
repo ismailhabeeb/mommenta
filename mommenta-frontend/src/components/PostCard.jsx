@@ -34,6 +34,8 @@ function renderCaption(text = "") {
   );
 }
 
+
+
 export default function PostCard({ post, currentusername, onUpdateComments }) {
   const [comment, setComment] = useState("");
   const [showComments, setShowComments] = useState(false);
@@ -44,7 +46,32 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
   const [muted, setMuted] = useState(true);
   const videoRefs = useRef([]);
   const observer = useRef(null);
+const [captionExpanded, setCaptionExpanded] = useState(false);
 
+
+function renderLongCaption(caption) {
+  if (!caption) return "";
+
+  const maxLength = 150; // length before "Read more"
+
+  // If caption is short, return normal highlighted caption
+  if (caption.length <= maxLength) return renderCaption(caption);
+
+  return (
+    <>
+      {captionExpanded
+        ? renderCaption(caption)
+        : renderCaption(caption.substring(0, maxLength) + "...")}
+
+      <span
+        className="text-[12px] text-blue-400 dark:text-blue-400 cursor-pointer ml-1 font-small"
+        onClick={() => setCaptionExpanded(!captionExpanded)}
+      >
+        {captionExpanded ? "Read less" : "Read more"}
+      </span>
+    </>
+  );
+}
   // comment functions
   const handlePostComment = () => {
     if (!comment.trim()) return;
@@ -112,7 +139,7 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
       <div className="flex items-center justify-between px-4 py-3">
         <Link to={`/profile/${post.user?._id}`} className="flex items-center">
           <img
-            src={post.user?.profilePic || "/default-avatar.png"}
+            src={post.user?.profilePic || "https://api.dicebear.com/9.x/thumbs/svg?seed=placeholder"}
             alt={post.user?.username || "user"}
             className="w-10 h-10 rounded-full object-cover"
           />
@@ -206,8 +233,8 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
                   <SwiperSlide key={i} className="cursor-pointer">
                     <div
                       className={`rounded-lg border-2 w-fit ${i === activeIndex
-                          ? "border-white"
-                          : "border-transparent opacity-80 hover:opacity-100"
+                        ? "border-white"
+                        : "border-transparent opacity-80 hover:opacity-100"
                         } transition`}
                     >
                       {m.mediaType?.startsWith("video") ? (
@@ -251,11 +278,19 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
 
       {/* Caption */}
       <div className="px-4 text-sm text-gray-900 dark:text-gray-100">
-        <p className="font-semibold mb-1">{post.likes || 0} likes</p>
-        <p>
-          <span className="font-semibold mr-2">{post.user?.username}</span>
-          {renderCaption(post.caption)}
+        <p className="font-semibold mb-1 text-purple">{post?.like || 0} likes</p>
+        <p className="w-full p-1 rounded-2xl">
+          <span className="font-semibold mr-2 bg-gray-200 dark:bg-gray-500 px-2 rounded-3xl">{post.user?.username}</span>
+          {/* {renderCaption(post.caption)} */}
+          {renderLongCaption(post.caption)}
+
         </p>
+        <div className="text-[10px] text-gray-400 mt-1 text-right">
+          {new Date(post?.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </div>
       </div>
 
       {/* Comments */}
@@ -296,8 +331,8 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
             onClick={handlePostComment}
             disabled={!comment.trim()}
             className={`ml-2 text-sm font-semibold ${comment.trim()
-                ? "text-blue-500"
-                : "text-gray-400 cursor-default"
+              ? "text-blue-500"
+              : "text-gray-400 cursor-default"
               }`}
           >
             Post

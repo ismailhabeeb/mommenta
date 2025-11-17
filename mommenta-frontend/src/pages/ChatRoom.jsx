@@ -219,7 +219,7 @@ export default function ChatRoom({ activeChat, onBack }) {
             </button>
             <div className="relative">
               <img
-                src={receiver?.profilePic || "/default-avatar.png"}
+                src={receiver?.profilePic || "https://api.dicebear.com/9.x/thumbs/svg?seed=placeholder"}
                 alt={receiver?.username}
                 className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700"
               />
@@ -244,7 +244,8 @@ export default function ChatRoom({ activeChat, onBack }) {
         <div className="flex-1 overflow-y-auto min-h-[calc(78vh-145px)] max-h-[calc(80vh-150px)] px-4 py-3 space-y-3 scrollbar-hide">
           {loading ? (
             <p className="text-gray-500 dark:text-gray-400">
-              Loading messages...
+              <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+
             </p>
           ) : (
             <AnimatePresence>

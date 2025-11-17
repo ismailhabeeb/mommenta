@@ -18,6 +18,7 @@ import {
 import image1 from "../assets/images/Maud.jpg";
 import ChatRoom from "./ChatRoom";
 import { useChatDrawer } from "../context/ChatDrawerContext";
+import Preloader from "../components/Preloader";
 
 export default function ProfilePage() {
   const { user: currentUser } = useAuth();
@@ -94,7 +95,7 @@ export default function ProfilePage() {
     setActiveChat(null);
   };
 
-  if (loading) return <div className="text-center py-10">Loading...</div>;
+  if (loading) return <div className="text-center py-10"><Preloader/></div>;
   if (!profile) return <div className="text-center py-10">Profile not found.</div>;
 
   const isOwner = currentUser?._id === profile._id;

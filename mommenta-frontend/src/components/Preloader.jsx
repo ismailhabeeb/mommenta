@@ -1,23 +1,16 @@
-import { motion } from "framer-motion"; // for smooth animation
-import { mdiCamera } from "@mdi/js";
-import Icon from "@mdi/react";
-import logo from "/src/assets/images/logo.png"
+// src/components/Preloader.jsx
+import LogoAnimated from "./Logo";
 
 export default function Preloader() {
   return (
-    <div className="flex items-center justify-center h-screen bg-white">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.5 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6 }}
-        className="flex flex-col items-center"
-      >
-        {/* Logo Icon */}
-        <img src={logo} className="w-50" alt="" />
-        {/* <Icon path={mdiCamera} size={3} color="#111827" /> */}
-        {/* App Name */}
-        <h1 className="text-2xl font-bold mt-4 text-gray-800">Mommenta</h1>
-      </motion.div>
+    <div className="fixed inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-900 z-50 animate-fade">
+      <div className="flex flex-col items-center gap-4">
+        <LogoAnimated
+          size={150}
+          strokeWidth={35}
+          className="w-20 h-20 sm:w-24 sm:h-24"
+        />
+      </div>
     </div>
   );
 }
