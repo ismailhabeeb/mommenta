@@ -58,16 +58,16 @@ export default function Login() {
       <form 
         onSubmit={handleSubmit} 
         className="w-full max-w-sm space-y-4 bg-white/10 backdrop-blur-md 
-        p-6 rounded-2xl shadow-lg border border-white/20"
+        p-6 rounded-2xl shadow-lg border border-white/20 "
       >
 
         {/* Email */}
-        <div className="flex items-center bg-white/20 rounded-lg px-3">
+        <div className="flex items-center bg-white/20 rounded-lg px-3 outline-none">
           <Icon path={mdiAccount} size={1} className="text-white/70" />
           <input
             type="email"
             name="email"
-            className="flex-1 p-2 bg-transparent outline-none text-white placeholder-white/70"
+            className="flex-1 p-2 bg-transparent outline-none border-none text-white placeholder-white/70"
             placeholder="Enter your email"
             value={formData.email}
             onChange={handleChange}
@@ -81,7 +81,7 @@ export default function Login() {
           <input
             type={showPassword ? "text" : "password"}
             name="password"
-            className="flex-1 p-2 bg-transparent outline-none text-white placeholder-white/70 pr-10"
+            className="flex-1 p-2 bg-transparent outline-none border-none text-white placeholder-white/70 pr-10"
             placeholder="Enter your password"
             value={formData.password}
             onChange={handleChange}

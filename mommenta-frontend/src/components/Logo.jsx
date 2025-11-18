@@ -1,6 +1,6 @@
 export default function LogoAnimated({ size = 260, strokeWidth = 40 }) {
   return (
-    <div className="flex items-center justify-center p-6">
+    <div className="flex items-center justify-center ">
       <svg
         width={size}
         height={size}

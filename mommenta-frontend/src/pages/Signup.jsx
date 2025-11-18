@@ -82,16 +82,16 @@ export default function Signup() {
         )}
 
         <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 bg-white/10 backdrop-blur-md 
-        p-6 rounded-2xl ">
+        p-6 rounded-2xl shadow-lg border border-white/20  ">
 
           {/* Username */}
-          <div className="flex items-center border border-white/30 bg-white/10 backdrop-blur-md rounded-lg px-3">
+          <div className="flex items-center bg-white/20 rounded-lg px-3 outline-none">
             <Icon path={mdiAccount} size={1} className="text-white/70" />
             <input
               type="text"
               name="username"
               placeholder="Username"
-              className="flex-1 p-2 outline-none bg-transparent text-white placeholder-white/60"
+              className="flex-1 p-2 outline-none border-none bg-transparent text-white placeholder-white/60"
               value={form.username}
               onChange={handleChange}
               required
@@ -99,13 +99,13 @@ export default function Signup() {
           </div>
 
           {/* Email */}
-          <div className="flex items-center border border-white/30 bg-white/10 backdrop-blur-md rounded-lg px-3">
+          <div className="flex items-center bg-white/20 rounded-lg px-3  ">
             <Icon path={mdiEmail} size={1} className="text-white/70" />
             <input
               type="email"
               name="email"
               placeholder="Email"
-              className="flex-1 p-2 outline-none bg-transparent text-white placeholder-white/60"
+              className="flex-1 p-2 outline-none border-none bg-transparent text-white placeholder-white/60"
               value={form.email}
               onChange={handleChange}
               required
@@ -113,13 +113,13 @@ export default function Signup() {
           </div>
 
           {/* Password */}
-          <div className="flex items-center border border-white/30 bg-white/10 backdrop-blur-md rounded-lg px-3 relative">
+          <div className="flex items-center bg-white/20 rounded-lg px-3 outline-none relative">
             <Icon path={mdiLock} size={1} className="text-white/70" />
             <input
               type={showPassword ? "text" : "password"}
               name="password"
               placeholder="Password"
-              className="flex-1 p-2 outline-none bg-transparent text-white placeholder-white/60 pr-8"
+              className="flex-1 p-2 outline-none border-none bg-transparent text-white placeholder-white/60 pr-8"
               value={form.password}
               onChange={handleChange}
               required
@@ -134,13 +134,13 @@ export default function Signup() {
           </div>
 
           {/* Confirm Password */}
-          <div className="flex items-center border border-white/30 bg-white/10 backdrop-blur-md rounded-lg px-3">
+          <div className="flex items-center bg-white/20 rounded-lg px-3 outline-none">
             <Icon path={mdiLock} size={1} className="text-white/70" />
             <input
               type={showPassword ? "text" : "password"}
               name="confirmPassword"
               placeholder="Confirm Password"
-              className="flex-1 p-2 outline-none bg-transparent text-white placeholder-white/60"
+              className="flex-1 p-2 outline-none border-none bg-transparent text-white placeholder-white/60"
               value={form.confirmPassword}
               onChange={handleChange}
               required

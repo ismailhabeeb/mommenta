@@ -21,13 +21,13 @@ export default function TopBar() {
   return (
     <>
       {/* 🔹 Top Bar */}
-      <div className="fixed top-0 left-0 right-0 h-16 bg-white dark:bg-gray-900 shadow-md flex items-center justify-between px-6 z-50">
+      <div className="fixed top-0 left-0 right-0 h-16 bg-white p-0 dark:bg-gray-900 shadow-md flex items-center justify-between px-6 md:px-1 z-50">
         {/* Logo */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 ">
           <LogoAnimated
             size={50}
             strokeWidth={10}
-            className="w-20 h-20 sm:w-24 sm:h-24"
+            className="w-20 h-16 sm:w-24 sm:h-16 bg-black"
           />
           {/* <img src={logo} alt="Mommenta" className="w-10 h-10" /> */}
           <span className="font-bold text-xl text-gray-800 dark:text-gray-100">

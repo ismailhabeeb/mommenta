@@ -134,7 +134,7 @@ function renderLongCaption(caption) {
   }, [mediaItems]);
 
   return (
-    <div className="bg-white dark:text-gray-300 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden mb-1 w-full group transition-all">
+    <div className="bg-white dark:text-gray-300 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden mb-1 w-full group transition-all ">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <Link to={`/profile/${post.user?._id}`} className="flex items-center">
