@@ -20,7 +20,7 @@ export default function Sidebar({ userD }) {
 
         <div className="flex items-center space-x-3">
           <img
-            src={userD.profilePic ||`https://i.pravatar.cc/100?img=12`}
+            src={userD.profilePic ||"https://api.dicebear.com/9.x/thumbs/svg?seed=placeholder"}
             alt="me"
             className="w-12 h-12 rounded-full"
           />

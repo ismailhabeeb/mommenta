@@ -105,7 +105,7 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="flex items-center gap-8">
         <img
-          src={profile.profilePic || "/default-avatar.png"}
+          src={profile.profilePic || "https://api.dicebear.com/9.x/thumbs/svg?seed=placeholder"}
           alt="profile"
           className="w-32 h-32 rounded-full object-cover"
         />

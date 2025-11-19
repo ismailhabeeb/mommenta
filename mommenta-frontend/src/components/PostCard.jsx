@@ -7,6 +7,7 @@ import {
   mdiEmoticonOutline,
   mdiVolumeMute,
   mdiVolumeHigh,
+  mdiHeart,
 } from "@mdi/js";
 import { useState, useRef, useEffect } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -16,6 +17,7 @@ import "swiper/css/navigation";
 import "swiper/css/pagination";
 import "swiper/css/thumbs";
 import { Link } from "react-router-dom";
+import { addComment, likePost } from "../services";
 
 // highlight hashtags in caption
 function renderCaption(text = "") {
@@ -46,40 +48,68 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
   const [muted, setMuted] = useState(true);
   const videoRefs = useRef([]);
   const observer = useRef(null);
-const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [captionExpanded, setCaptionExpanded] = useState(false);
+  const [likes, setLikes] = useState(post.likes.length);
+  const [liked, setLiked] = useState(post.likes.includes(post.currentUserId));
 
 
-function renderLongCaption(caption) {
-  if (!caption) return "";
+  function renderLongCaption(caption) {
+    if (!caption) return "";
 
-  const maxLength = 150; // length before "Read more"
+    const maxLength = 150; // length before "Read more"
 
-  // If caption is short, return normal highlighted caption
-  if (caption.length <= maxLength) return renderCaption(caption);
+    // If caption is short, return normal highlighted caption
+    if (caption.length <= maxLength) return renderCaption(caption);
 
-  return (
-    <>
-      {captionExpanded
-        ? renderCaption(caption)
-        : renderCaption(caption.substring(0, maxLength) + "...")}
+    return (
+      <>
+        {captionExpanded
+          ? renderCaption(caption)
+          : renderCaption(caption.substring(0, maxLength) + "...")}
 
-      <span
-        className="text-[12px] text-blue-400 dark:text-blue-400 cursor-pointer ml-1 font-small"
-        onClick={() => setCaptionExpanded(!captionExpanded)}
-      >
-        {captionExpanded ? "Read less" : "Read more"}
-      </span>
-    </>
-  );
-}
+        <span
+          className="text-[12px] text-blue-400 dark:text-blue-400 cursor-pointer ml-1 font-small"
+          onClick={() => setCaptionExpanded(!captionExpanded)}
+        >
+          {captionExpanded ? "Read less" : "Read more"}
+        </span>
+      </>
+    );
+  }
   // comment functions
-  const handlePostComment = () => {
+  const handlePostComment = async () => {
     if (!comment.trim()) return;
-    const newComment = { id: Date.now(), user: "You", text: comment };
-    onUpdateComments?.(post._id, newComment);
-    setComment("");
+
+    try {
+      const res = await addComment(post._id, { text: comment });  // <-- FIXED
+
+      // Optimistic update
+      onUpdateComments?.(post._id, {
+        id: Date.now(),
+        user: currentusername,
+        text: comment,
+        createdAt: new Date(),
+      });
+
+      setComment("");
+    } catch (err) {
+      console.error("Comment Error:", err);
+    }
   };
 
+  //likes function
+  const handleLike = async () => {
+    try {
+      const res = await likePost(post._id);
+      // Update UI
+      setLikes(res.data.likes);
+      // console.log("Like msg:", res.data.msg);
+
+      setLiked(res?.data.msg === "Liked");
+    } catch (err) {
+      console.error(err);
+    }
+  };
   useEffect(() => {
     if (commentsContainerRef.current) {
       commentsContainerRef.current.scrollTop =
@@ -133,6 +163,9 @@ function renderLongCaption(caption) {
     return () => observer.current?.disconnect();
   }, [mediaItems]);
 
+  useEffect(() => {
+
+  })
   return (
     <div className="bg-white dark:text-gray-300 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden mb-1 w-full group transition-all ">
       {/* Header */}
@@ -262,23 +295,30 @@ function renderLongCaption(caption) {
       {/* Actions */}
       <div className="flex justify-between items-center px-4 py-3 ">
         <div className="flex space-x-4 text-gray-900 dark:text-gray-100 bg-white/30 dark:bg-gray-900/30 backdrop-blur-lg border border-gray-200/40 dark:border-gray-700/40 shadow-lg rounded-3xl px-2 py-1">
-          <Icon path={mdiHeartOutline} size={1.3} className="cursor-pointer hover:text-pink-500" />
+          {/* Like Button */}
+          <button onClick={handleLike} className="flex items-center gap-1">
+            <Icon
+              path={liked ? mdiHeart : mdiHeartOutline}
+              size={1}
+              className={liked ? "text-red-500" : "text-gray-500"}
+            />
+          </button>
           <Icon
             path={mdiCommentOutline}
-            size={1.3}
+            size={1}
             className="cursor-pointer hover:text-blue-500"
             onClick={() => setShowComments(!showComments)}
           />
-          <Icon path={mdiShareOutline} size={1.3} className="cursor-pointer hover:text-green-500" />
+          <Icon path={mdiShareOutline} size={1} className="cursor-pointer hover:text-green-500" />
         </div>
         <div className="bg-white/30 dark:bg-gray-900/30 backdrop-blur-lg border border-gray-200/40 dark:border-gray-700/40 shadow-lg rounded-3xl px-2 py-1">
-          <Icon path={mdiBookmarkOutline} size={1.3} className="cursor-pointer hover:text-purple-500 " />
+          <Icon path={mdiBookmarkOutline} size={1} className="cursor-pointer hover:text-purple-500 " />
         </div>
       </div>
 
       {/* Caption */}
       <div className="px-4 text-sm text-gray-900 dark:text-gray-100">
-        <p className="font-semibold mb-1 text-purple">{post?.like || 0} likes</p>
+        <p className="font-semibold mb-1 text-purple">{post?.likes.length || 0} likes</p>
         <p className="w-full p-1 rounded-2xl">
           <span className="font-semibold mr-2 bg-gray-200 dark:bg-gray-500 px-2 rounded-3xl">{post.user?.username}</span>
           {/* {renderCaption(post.caption)} */}
@@ -297,20 +337,45 @@ function renderLongCaption(caption) {
       {showComments && (
         <div
           ref={commentsContainerRef}
-          className="px-4 mt-2 max-h-40 overflow-y-auto text-sm text-gray-800 dark:text-gray-200 space-y-1"
+          className="px-4 mt-3 max-h-52 overflow-y-auto text-sm 
+               space-y-3 scroll-smooth"
         >
           {post.comments?.length > 0 ? (
             post.comments.map((c) => (
-              <p key={c.id}>
-                <span className="font-semibold mr-2">{c.user}</span>
-                {renderCommentText(c)}
-              </p>
+              <div key={c._id} className="flex items-start gap-2">
+
+                {/* USER AVATAR */}
+                <img
+                  src={
+                    c.user?.profilePic ||
+                    "https://api.dicebear.com/9.x/thumbs/svg?seed=placeholder"
+                  }
+                  alt={c.user?.username || "user"}
+                  className="w-8 h-8 rounded-full object-cover shrink-0"
+                />
+
+                {/* COMMENT BUBBLE */}
+                <div
+                  className="bg-gray-200 dark:bg-gray-700 
+                       rounded-2xl p-2 px-3 w-fit max-w-[80%]"
+                >
+                  <p className="font-semibold text-gray-900 dark:text-gray-100 mb-0.5">
+                    {c.user?.username}
+                  </p>
+
+                  <p className="text-gray-700 dark:text-gray-300 leading-snug">
+                    {renderCommentText(c)}
+                  </p>
+                </div>
+
+              </div>
             ))
           ) : (
             <p className="text-gray-500 text-xs">No comments yet. Be the first!</p>
           )}
         </div>
       )}
+
 
       {/* Comment Input */}
       {showComments && (

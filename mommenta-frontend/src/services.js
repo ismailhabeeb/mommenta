@@ -30,10 +30,9 @@ export const fetchPosts = async (page = 1, limit = 10) => {                     
 };
 export const fetchPostById = (id) => API.get(`/posts/${id}`);
 export const deletePost = (id) => API.delete(`/posts/${id}`);
-export const likePost = (id) => API.post(`/posts/${id}/like`);
-export const unlikePost = (id) => API.post(`/posts/${id}/unlike`);
+export const likePost = (id) => API.put(`/posts/${id}/like`);
 export const addComment = (postId, data) =>
-  API.post(`/posts/${postId}/comments`, data);
+  API.post(`/posts/${postId}/comment`, data);
 export const fetchComments = (postId) => API.get(`/posts/${postId}/comments`);
 
 /* ================================

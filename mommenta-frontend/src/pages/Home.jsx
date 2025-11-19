@@ -43,6 +43,16 @@ export default function Home() {
   fetchUser();
 }, []);
 
+
+const handleUpdateComments = (postId, newComment) => {
+  setPosts(prev =>
+    prev.map(p =>
+      p._id === postId
+        ? { ...p, comments: [...p.comments, newComment] }
+        : p
+    )
+  );
+};
   // Fetch posts with pagination
   const loadPosts = async (nextPage = page) => {
     try {
@@ -130,6 +140,7 @@ export default function Home() {
                     key={i}
                     post={post}
                     currentusername={user._id}
+                    onUpdateComments={handleUpdateComments}
                   />
                 ))
               ) : (
