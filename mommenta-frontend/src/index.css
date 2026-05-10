@@ -16,7 +16,7 @@ body {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.1); }
   }
-
+  
   .animate-scale {
     animation: scalePulse 1s ease-in-out infinite;
   }
@@ -42,8 +42,9 @@ body {
     stroke-dashoffset: 1000;
     animation: draw 2.5s ease forwards;
   }
-
+  
   @keyframes draw {
     to { stroke-dashoffset: 0; }
   }
 }
+/* .background:linear-gradient(to right, #c084fc, #7c3aed, #3b82f6); */
