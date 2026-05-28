@@ -24,7 +24,7 @@ function renderCaption(text = "") {
   if (typeof text !== "string") return null;
   return text.split(" ").map((word, idx) =>
     word.startsWith("#") ? (
-      <span
+      <span  
         key={idx}
         className="text-blue-600 dark:text-blue-400 font-medium cursor-pointer hover:underline"
       >

@@ -22,7 +22,6 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       const res = await login(formData);
       console.log("Login success:", res);
@@ -35,84 +34,104 @@ export default function Login() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen 
-      bg-gradient-to-br from-brand-gradientStart to-brand-gradientEnd 
-      px-6 py-10 text-white">
+    <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900 px-4 py-10">
+      <div className="w-full max-w-md">
 
-      {/* Logo + Title */}
-      <div className="flex flex-col items-center mb-10">
-        <LogoAnimated size={120} strokeWidth={20} className="mb-3" />
-        <h1 className="text-3xl sm:text-4xl font-heading font-bold">
-          Welcome Back 👋
-        </h1>
+        {/* Logo + Branding */}
+        <div className="flex flex-col items-center mb-8">
+          <LogoAnimated size={64} strokeWidth={16} />
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mt-3 tracking-tight">
+            Mommenta
+          </h1>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1 font-light">
+            Welcome back, sign in to continue
+          </p>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mb-5 text-sm text-red-500 bg-red-50 dark:bg-red-500/10 dark:text-red-400 px-4 py-3 rounded-xl border border-red-100 dark:border-red-500/20 text-center">
+            {error}
+          </div>
+        )}
+
+        {/* Card */}
+        <div className="bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+          <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+                Email
+              </label>
+              <div className="flex items-center bg-gray-50 dark:bg-white/5 rounded-xl px-3 gap-2">
+                <Icon path={mdiAccount} size={0.8} className="text-gray-300 dark:text-white/30 shrink-0" />
+                <div className="w-px h-4 bg-gray-200 dark:bg-white/10 shrink-0" />
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="you@example.com"
+                  className="flex-1 py-3 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder-white/20"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                  Password
+                </label>
+                <span className="text-xs text-gray-400 dark:text-gray-500 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                  Forgot password?
+                </span>
+              </div>
+              <div className="flex items-center bg-gray-50 dark:bg-white/5 rounded-xl px-3 gap-2 relative">
+                <Icon path={mdiLock} size={0.8} className="text-gray-300 dark:text-white/30 shrink-0" />
+                <div className="w-px h-4 bg-gray-200 dark:bg-white/10 shrink-0" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Enter your password"
+                  className="flex-1 py-3 bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder-white/20 pr-10"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 text-gray-300 dark:text-white/30 hover:text-gray-500 dark:hover:text-white/60 transition-colors"
+                >
+                  <Icon path={showPassword ? mdiEyeOff : mdiEye} size={0.8} />
+                </button>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-sm font-semibold hover:opacity-80 transition-opacity mt-1"
+            >
+              {loading ? "Logging in..." : "Log in"}
+            </button>
+
+          </form>
+        </div>
+
+        {/* Signup link */}
+        <p className="text-sm text-center text-gray-400 dark:text-gray-500 mt-5 font-light">
+          Don't have an account?{" "}
+          <a href="/signup" className="font-semibold text-gray-900 dark:text-white underline">
+            Sign up
+          </a>
+        </p>
+
       </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="mb-4 text-sm text-red-200 bg-red-500/20 px-3 py-2 rounded-lg w-full max-w-sm text-center">
-          {error}
-        </div>
-      )}
-
-      {/* Form */}
-      <form 
-        onSubmit={handleSubmit} 
-        className="w-full max-w-sm space-y-4 bg-white/10 backdrop-blur-md 
-        p-6 rounded-2xl shadow-lg border border-white/20 "
-      >
-
-        {/* Email */}
-        <div className="flex items-center bg-white/20 rounded-lg px-3 outline-none">
-          <Icon path={mdiAccount} size={1} className="text-white/70" />
-          <input
-            type="email"
-            name="email"
-            className="flex-1 p-2 bg-transparent outline-none border-none text-white placeholder-white/70"
-            placeholder="Enter your email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        {/* Password */}
-        <div className="flex items-center bg-white/20 rounded-lg px-3 relative">
-          <Icon path={mdiLock} size={1} className="text-white/70" />
-          <input
-            type={showPassword ? "text" : "password"}
-            name="password"
-            className="flex-1 p-2 bg-transparent outline-none border-none text-white placeholder-white/70 pr-10"
-            placeholder="Enter your password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
-          <button
-            type="button"
-            className="absolute right-2 text-white/70 hover:text-white"
-            onClick={() => setShowPassword(!showPassword)}
-          >
-            <Icon path={showPassword ? mdiEyeOff : mdiEye} size={1} />
-          </button>
-        </div>
-
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="btn-primary w-full py-3 rounded-xl font-medium"
-        >
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </form>
-
-      {/* Signup Link */}
-      <p className="mt-4 text-sm text-white/80">
-        Don’t have an account?{" "}
-        <a href="/signup" className="text-white font-semibold underline">
-          Sign up
-        </a>
-      </p>
     </div>
   );
 }
