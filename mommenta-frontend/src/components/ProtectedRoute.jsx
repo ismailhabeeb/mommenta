@@ -1,6 +1,6 @@
       // ProtectedRoute//
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import SkeletonLoader from "./SkeletonLoader";
 
 export default function ProtectedRoute({ children }) {

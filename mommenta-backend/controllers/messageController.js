@@ -1,8 +1,36 @@
 import Chat from "../models/Chat.js";
 import Message from "../models/Message.js";
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import cloudinary from "../middleware/cloudinary.js";
-import fs from "fs";
+import { removeTempFile } from "../utils/files.js";
+
+const getChatAccess = async (chatId, userId) => {
+  if (!mongoose.isValidObjectId(chatId)) {
+    return { status: 400, message: "Invalid chat ID" };
+  }
+
+  const chat = await Chat.findById(chatId);
+  if (!chat) return { status: 404, message: "Chat not found" };
+  if (!chat.members.some((member) => member.equals(userId))) {
+    return { status: 403, message: "You do not have access to this chat" };
+  }
+
+  return { chat };
+};
+
+export const requireChatMember = async (req, res, next) => {
+  try {
+    const access = await getChatAccess(req.params.chatId, req.user.id);
+    if (access.status) {
+      return res.status(access.status).json({ message: access.message });
+    }
+    req.chat = access.chat;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
 
 // ✅ Start a new conversation or return existing one
 export const startConversation = async (req, res) => {
@@ -79,13 +107,14 @@ export const getMessages = async (req, res) => {
   try {
     const { chatId } = req.params;
 
-    const chat = await Chat.findById(chatId);
-    if (!chat) return res.status(404).json({ message: "Chat not found" });
+    const access = await getChatAccess(chatId, req.user.id);
+    if (access.status) {
+      return res.status(access.status).json({ message: access.message });
+    }
 
-    const messages = await Message.find({ chatId: chatId })
+    const messages = await Message.find({ chatId })
       .sort({ createdAt: 1 })
       .populate("sender", "username profilePic");
-    console.log(messages);
     res.json(messages);
   } catch (error) {
     console.error("Get messages error:", error);
@@ -97,46 +126,55 @@ export const getMessages = async (req, res) => {
 export const sendMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { text } = req.body;
+    const text = typeof req.body.text === "string" ? req.body.text.trim() : "";
     const senderId = req.user.id;
-
-    let media = []; // <-- FIX 1: declare media globally
-
     const files = req.files || [];
+    if (text.length > 5000) {
+      await Promise.all(files.map((file) => removeTempFile(file.path)));
+      return res.status(400).json({ message: "Message text must be 5000 characters or fewer" });
+    }
+    let chat = req.chat;
+    if (!chat) {
+      const access = await getChatAccess(chatId, senderId);
+      if (access.status) {
+        return res.status(access.status).json({ message: access.message });
+      }
+      chat = access.chat;
+    }
+
+    if (!text && !files.length) {
+      return res.status(400).json({ message: "A message or attachment is required" });
+    }
+    let media = [];
 
     if (files.length > 0) {
       // Upload files to Cloudinary concurrently
-      const uploadPromises = files.map((file) =>
-        cloudinary.uploader
-          .upload(file.path, {
+      const uploadPromises = files.map(async (file) => {
+        try {
+          const result = await cloudinary.uploader.upload(file.path, {
             resource_type: "auto",  // auto supports video, pdf, docs, images
             folder: "mommenta_messages",
-          })
-          .then((result) => {
-            fs.unlinkSync(file.path); // delete temp file
-            return {
-              mediaUrl: result.secure_url,
-              mediaType: result.resource_type, // image, video, raw
-              publicId: result.public_id,
-            };
-          })
-      );
+          });
+          return {
+            mediaUrl: result.secure_url,
+            mediaType: result.resource_type,
+            publicId: result.public_id,
+          };
+        } finally {
+          await removeTempFile(file.path);
+        }
+      });
 
       media = await Promise.all(uploadPromises); // <-- FIX 2: assign to global media
     }
 
-    const chat = await Chat.findById(chatId);
-    if (!chat) return res.status(404).json({ message: "Chat not found" });
-
-    // Save message
     const message = await Message.create({
       chatId,
       sender: senderId,
-      text: text || "",
-      media, // <-- now always defined (empty array or filled array)
+      text,
+      media,
     });
 
-    // Update last message
     chat.lastMessage = message._id;
     await chat.save();
 
@@ -147,24 +185,10 @@ export const sendMessage = async (req, res) => {
 
     // Real-time socket emission
     const io = req.app.get("io");
-    const onlineUsers = req.app.get("onlineUsers");
 
-    const receiverId = chat.members
-      .filter(Boolean)
-      .map((m) => (m._id ? m._id.toString() : m.toString()))
-      .find((id) => id !== senderId.toString());
-
-    const receiverSocket = onlineUsers?.get(receiverId);
-
-    if (receiverSocket && io) {
-      io.to(receiverSocket).emit("receiveMessage", {
-        _id: message._id,
-        chatId,
-        senderId,
-        text,
-        media,
-        createdAt: message.createdAt,
-      });
+    const receiverId = chat.members.find((member) => !member.equals(senderId));
+    if (receiverId && io) {
+      io.to(`user:${receiverId}`).emit("receiveMessage", populatedMessage.toObject());
     }
 
     res.status(201).json(populatedMessage);
@@ -179,11 +203,15 @@ export const sendMessage = async (req, res) => {
 export const markMessagesRead = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const userId = req.user._id;
+    const userId = req.user.id;
+    const access = await getChatAccess(chatId, userId);
+    if (access.status) {
+      return res.status(access.status).json({ message: access.message });
+    }
 
     await Message.updateMany(
-      { chat: chatId, sender: { $ne: userId }, read: false },
-      { $set: { read: true } }
+      { chatId, sender: { $ne: userId }, read: false },
+      { $set: { read: true, readAt: new Date() } }
     );
 
     res.json({ message: "Messages marked as read" });

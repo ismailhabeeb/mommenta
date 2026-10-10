@@ -1,7 +1,9 @@
 import cloudinary from "../middleware/cloudinary.js";
 import Post from "../models/Post.js";
 import User from "../models/User.js";
-import fs from "fs";
+import Notification from "../models/Notification.js";
+import { canViewUserContent, getHiddenPrivateUserIds } from "../utils/privacy.js";
+import { removeTempFile } from "../utils/files.js";
 
 // ==============================
 // Create a new post
@@ -12,33 +14,37 @@ export const createPost = async (req, res) => {
     const userId = req.user.id;
     const files = req.files || [];
 
+    if (typeof caption === "string" && caption.length > 2200) {
+      await Promise.all(files.map((file) => removeTempFile(file.path)));
+      return res.status(400).json({ msg: "Caption must be 2200 characters or fewer" });
+    }
     if (!files.length) {
       return res.status(400).json({ msg: "Post must include at least one media item" });
     }
 
     // Upload files to Cloudinary concurrently
-    const uploadPromises = files.map((file) =>
-      cloudinary.uploader
-        .upload(file.path, {
+    const uploadPromises = files.map(async (file) => {
+      try {
+        const result = await cloudinary.uploader.upload(file.path, {
           resource_type: "auto",
           folder: "mommenta_posts",
-        })
-        .then((result) => {
-          fs.unlinkSync(file.path); // delete local temp file
-          return {
-            mediaUrl: result.secure_url,
-            mediaType: result.resource_type,
-            publicId: result.public_id,
-          };
-        })
-    );
+        });
+        return {
+          mediaUrl: result.secure_url,
+          mediaType: result.resource_type,
+          publicId: result.public_id,
+        };
+      } finally {
+        await removeTempFile(file.path);
+      }
+    });
 
     const media = await Promise.all(uploadPromises);
     const hashtags = caption ? caption.match(/#\w+/g) || [] : [];
 
     const newPost = new Post({
       user: userId,
-      caption,
+      caption: typeof caption === "string" ? caption.trim() : "",
       media,
       hashtags,
     });
@@ -54,50 +60,95 @@ export const createPost = async (req, res) => {
 };
 
 // ==============================
-// Get Feed (Followed + Random)
+// Paginate followed posts and public discovery posts as two stable streams.
 // ==============================
 export const getFeed = async (req, res) => {
   try {
     const currentUser = await User.findById(req.user.id);
     if (!currentUser) return res.status(404).json({ msg: "User not found" });
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(30, Math.max(1, Number.parseInt(req.query.limit, 10) || 10));
     const skip = (page - 1) * limit;
 
     const feedIds = [...currentUser.following, currentUser._id];
+    const hiddenPrivateUserIds = await getHiddenPrivateUserIds(
+      currentUser._id,
+      currentUser.following
+    );
+    const otherFeedIds = [...feedIds, ...hiddenPrivateUserIds];
+    const otherLimit = Math.ceil(limit / 3);
+    const otherSkip = (page - 1) * otherLimit;
 
-    const followedPosts = await Post.find({ user: { $in: feedIds } })
-      .populate("user", "username profilePic")
-      .populate("comments.user", "username profilePic")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const [followedPosts, otherPosts, followedCount, otherCount] = await Promise.all([
+      Post.find({ user: { $in: feedIds } })
+        .populate("user", "username profilePic")
+        .populate("comments.user", "username profilePic")
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(limit),
+      Post.find({ user: { $nin: otherFeedIds } })
+        .populate("user", "username profilePic")
+        .populate("comments.user", "username profilePic")
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(otherSkip)
+        .limit(otherLimit),
+      Post.countDocuments({ user: { $in: feedIds } }),
+      Post.countDocuments({ user: { $nin: otherFeedIds } }),
+    ]);
 
-    const otherPosts = await Post.find({ user: { $nin: feedIds } })
-      .populate("user", "username profilePic")
-      .populate("comments.user", "username profilePic")
-      .sort({ createdAt: -1 })
-      .limit(limit / 2);
-
-    // Mix posts (followed + random)
     const mixedFeed = [];
-    const maxLen = Math.max(followedPosts.length, otherPosts.length);
-
+    const maxLen = Math.max(
+      followedPosts.length,
+      otherPosts.length ? (otherPosts.length - 1) * 3 + 1 : 0
+    );
+    let otherIndex = 0;
     for (let i = 0; i < maxLen; i++) {
       if (followedPosts[i]) mixedFeed.push(followedPosts[i]);
-      if (i % 3 === 0 && otherPosts.length > 0) {
-        const randomIndex = Math.floor(Math.random() * otherPosts.length);
-        mixedFeed.push(otherPosts.splice(randomIndex, 1)[0]);
+      if (i % 3 === 0 && otherPosts[otherIndex]) {
+        mixedFeed.push(otherPosts[otherIndex]);
+        otherIndex += 1;
       }
     }
 
-    const totalPosts = await Post.countDocuments({ user: { $in: feedIds } });
-    const hasMore = skip + limit < totalPosts;
+    const hasMore =
+      skip + limit < followedCount || otherSkip + otherLimit < otherCount;
 
     res.json({ posts: mixedFeed, hasMore });
   } catch (err) {
     console.error("Feed Error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+export const getPostById = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id)
+      .populate("user", "username profilePic")
+      .populate("comments.user", "username profilePic");
+    if (!post) return res.status(404).json({ msg: "Post not found" });
+    if (!(await canViewUserContent(req.user.id, post.user._id))) {
+      return res.status(403).json({ msg: "This post is private" });
+    }
+    res.json(post);
+  } catch (err) {
+    console.error("Get post error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+export const getPostComments = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id)
+      .select("user comments")
+      .populate("comments.user", "username profilePic");
+    if (!post) return res.status(404).json({ msg: "Post not found" });
+    if (!(await canViewUserContent(req.user.id, post.user._id))) {
+      return res.status(403).json({ msg: "This post is private" });
+    }
+    res.json(post.comments);
+  } catch (err) {
+    console.error("Get post comments error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
@@ -111,8 +162,11 @@ export const likePost = async (req, res) => {
     const post = await Post.findById(req.params.id);
 
     if (!post) return res.status(404).json({ msg: "Post not found" });
+    if (!(await canViewUserContent(req.user.id, post.user))) {
+      return res.status(403).json({ msg: "This post is private" });
+    }
 
-    const alreadyLiked = post.likes.includes(userId);
+    const alreadyLiked = post.likes.some((id) => id.toString() === userId.toString());
 
     if (alreadyLiked) {
       post.likes = post.likes.filter((id) => id.toString() !== userId);
@@ -121,6 +175,16 @@ export const likePost = async (req, res) => {
     }
 
     await post.save();
+    if (!alreadyLiked && post.user.toString() !== userId.toString()) {
+      const notification = await Notification.create({
+        user: post.user,
+        sender: userId,
+        type: "like",
+        post: post._id,
+      });
+      await notification.populate("sender", "username profilePic");
+      req.app.get("io")?.to(`user:${post.user}`).emit("newNotification", notification);
+    }
     res.json({ msg: alreadyLiked ? "Unliked" : "Liked", likes: post.likes.length });
   } catch (err) {
     console.error("Like Error:", err);
@@ -133,18 +197,37 @@ export const likePost = async (req, res) => {
 // ==============================
 export const commentOnPost = async (req, res) => {
   try {
+    const text = typeof req.body.text === "string" ? req.body.text.trim() : "";
+    if (!text) return res.status(400).json({ msg: "Comment cannot be empty" });
+    if (text.length > 1000) {
+      return res.status(400).json({ msg: "Comment must be 1000 characters or fewer" });
+    }
+
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ msg: "Post not found" });
+    if (!(await canViewUserContent(req.user.id, post.user))) {
+      return res.status(403).json({ msg: "This post is private" });
+    }
 
     const comment = {
       user: req.user.id,
-      text: req.body.text,
+      text,
       createdAt: new Date(),
     };
 
     post.comments.push(comment);
     await post.save();
     await post.populate("comments.user", "username profilePic");
+    if (post.user.toString() !== req.user.id.toString()) {
+      const notification = await Notification.create({
+        user: post.user,
+        sender: req.user.id,
+        type: "comment",
+        post: post._id,
+      });
+      await notification.populate("sender", "username profilePic");
+      req.app.get("io")?.to(`user:${post.user}`).emit("newNotification", notification);
+    }
 
     res.json(post);
   } catch (err) {
@@ -166,8 +249,10 @@ export const editPost = async (req, res) => {
       return res.status(403).json({ msg: "Unauthorized" });
     }
 
-    post.caption = caption || post.caption;
-    post.hashtags = caption ? caption.match(/#\w+/g) || [] : post.hashtags;
+    if (typeof caption === "string") {
+      post.caption = caption.trim();
+      post.hashtags = caption.match(/#\w+/g) || [];
+    }
 
     await post.save();
     res.json(post);

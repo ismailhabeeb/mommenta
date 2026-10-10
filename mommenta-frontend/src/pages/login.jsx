@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { useNavigate } from "react-router-dom";
 import Icon from "@mdi/react";
 import { mdiAccount, mdiLock, mdiEye, mdiEyeOff } from "@mdi/js";
@@ -23,8 +23,7 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      const res = await login(formData);
-      console.log("Login success:", res);
+      await login(formData);
       navigate("/home");
     } catch (err) {
       setError(err.response?.data?.msg || "Login failed");

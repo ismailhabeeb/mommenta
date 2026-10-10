@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { useSocket } from "../context/SocketContext";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useSocket } from "../context/useSocket";
 import { fetchMessages, sendMessage, markMessagesRead } from "../services";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import EmojiPicker from "emoji-picker-react";
 import Icon from "@mdi/react";
 import {
@@ -12,7 +12,8 @@ import {
   mdiClose,
   mdiFileOutline,
 } from "@mdi/js";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "motion/react";
+import toast from "react-hot-toast";
 
 export default function ChatRoom({ activeChat, onBack }) {
   const [messages, setMessages] = useState([]);
@@ -21,6 +22,8 @@ export default function ChatRoom({ activeChat, onBack }) {
   const [isTyping, setIsTyping] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
   const [files, setFiles] = useState([]);
+  const [filePreviews, setFilePreviews] = useState([]);
+  const [sending, setSending] = useState(false);
   const [viewer, setViewer] = useState(null); // 🧩 Modal viewer
   const { user: currentUser } = useAuth();
   const socket = useSocket();
@@ -28,18 +31,35 @@ export default function ChatRoom({ activeChat, onBack }) {
   const typingTimeoutRef = useRef(null);
 
   const chatId = activeChat?._id;
-  const receiver = activeChat?.members.find((m) => m._id !== currentUser?._id);
+  const currentUserId = currentUser?._id || currentUser?.id;
+  const receiver = activeChat?.members?.find((m) => m._id !== currentUserId);
+  useEffect(() => {
+    const previews = files.map((file) => URL.createObjectURL(file));
+    setFilePreviews(previews);
+    return () => previews.forEach((preview) => URL.revokeObjectURL(preview));
+  }, [files]);
+  const scrollToBottom = useCallback(() => {
+    setTimeout(
+      () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
+      100
+    );
+  }, []);
 
   // 🟢 Fetch messages
   useEffect(() => {
     if (!chatId) return;
     const loadMessages = async () => {
+      setLoading(true);
       try {
         const { data } = await fetchMessages(chatId);
         setMessages(data);
-        await markMessagesRead(chatId);
+        markMessagesRead(chatId).catch((error) => {
+          console.error("Unable to mark chat messages as read:", error);
+        });
       } catch (err) {
         console.error("Error fetching messages:", err);
+        setMessages([]);
+        toast.error("Unable to load this conversation.");
       } finally {
         setLoading(false);
       }
@@ -49,41 +69,55 @@ export default function ChatRoom({ activeChat, onBack }) {
 
   // ⚡ Socket listeners
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !chatId) return;
+    socket.emit("joinChat", chatId);
 
-    socket.on("receiveMessage", (message) => {
+    const onReceiveMessage = (message) => {
       if (message.chatId === chatId) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) =>
+          prev.some((existing) => existing._id === message._id)
+            ? prev
+            : [...prev, message]
+        );
         scrollToBottom();
       }
-    });
+    };
 
-    socket.on("userTyping", ({ chatId: typingChatId }) => {
+    const onUserTyping = ({ chatId: typingChatId }) => {
       if (typingChatId === chatId) setIsTyping(true);
-    });
+    };
 
-    socket.on("userStopTyping", ({ chatId: typingChatId }) => {
+    const onUserStopTyping = ({ chatId: typingChatId }) => {
       if (typingChatId === chatId) setIsTyping(false);
-    });
+    };
+
+    socket.on("receiveMessage", onReceiveMessage);
+    socket.on("userTyping", onUserTyping);
+    socket.on("userStopTyping", onUserStopTyping);
 
     return () => {
-      socket.off("receiveMessage");
-      socket.off("userTyping");
-      socket.off("userStopTyping");
+      socket.off("receiveMessage", onReceiveMessage);
+      socket.off("userTyping", onUserTyping);
+      socket.off("userStopTyping", onUserStopTyping);
     };
-  }, [socket, chatId]);
+  }, [socket, chatId, scrollToBottom]);
 
   // ✍️ Typing
   const handleTyping = (e) => {
     setText(e.target.value);
     if (socket && chatId) {
-      socket.emit("userTyping", { chatId, senderId: currentUser._id });
+      socket.emit("typing", chatId);
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
-        socket.emit("userStopTyping", { chatId, senderId: currentUser._id });
+        socket.emit("stopTyping", chatId);
       }, 1500);
     }
   };
+
+  useEffect(
+    () => () => clearTimeout(typingTimeoutRef.current),
+    []
+  );
 
   // 🚀 Send message
   const handleSend = async (e) => {
@@ -98,9 +132,7 @@ export default function ChatRoom({ activeChat, onBack }) {
     files.forEach((file) => formData.append("media", file));
 
     try {
-      // optional: show sending state
-      // setSending(true);
-
+      setSending(true);
       const { data } = await sendMessage(chatId, formData);
 
       // append message to UI
@@ -113,9 +145,9 @@ export default function ChatRoom({ activeChat, onBack }) {
       scrollToBottom();
     } catch (err) {
       console.error("Error sending message:", err);
-      // toast.error("Failed to send message");
+      toast.error(err.response?.data?.message || "Message could not be sent.");
     } finally {
-      // setSending(false);
+      setSending(false);
     }
   };
 
@@ -123,8 +155,17 @@ export default function ChatRoom({ activeChat, onBack }) {
 
   // 📎 Handle multiple file uploads
   const handleFileUpload = (e) => {
-    const selected = Array.from(e.target.files);
-    setFiles((prev) => [...prev, ...selected]);
+    const selected = Array.from(e.target.files || []);
+    e.currentTarget.value = "";
+    const accepted = selected.filter((file) => file.size <= 50 * 1024 * 1024);
+    if (accepted.length !== selected.length) {
+      toast.error("Each attachment must be 50 MB or smaller.");
+    }
+    const available = Math.max(0, 5 - files.length);
+    if (accepted.length > available) {
+      toast.error("You can attach up to 5 files per message.");
+    }
+    setFiles((prev) => [...prev, ...accepted.slice(0, available)]);
   };
 
   const removeFile = (index) => {
@@ -137,23 +178,17 @@ export default function ChatRoom({ activeChat, onBack }) {
   };
 
   // 🔽 Scroll helper
-  const scrollToBottom = () => {
-    setTimeout(
-      () => bottomRef.current?.scrollIntoView({ behavior: "smooth" }),
-      100
-    );
-  };
-  useEffect(scrollToBottom, [messages]);
+  useEffect(scrollToBottom, [messages, scrollToBottom]);
 
   if (!activeChat)
     return (
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         className="flex-1 flex items-center justify-center text-gray-500 bg-gray-50 dark:bg-gray-900"
       >
         Select a chat to start messaging
-      </motion.div>
+      </Motion.div>
     );
 
 
@@ -189,6 +224,7 @@ export default function ChatRoom({ activeChat, onBack }) {
             <a
               href={file.mediaUrl}
               target="_blank"
+              rel="noreferrer"
               className="block p-2 bg-gray-200 rounded-lg underline"
             >
               {file.mediaUrl.split("/").pop()}
@@ -200,7 +236,7 @@ export default function ChatRoom({ activeChat, onBack }) {
   };
   return (
     <AnimatePresence mode="wait">
-      <motion.div
+      <Motion.div
         key={chatId}
         initial={{ x: "100%", opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
@@ -243,14 +279,14 @@ export default function ChatRoom({ activeChat, onBack }) {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto min-h-[calc(78vh-145px)] max-h-[calc(80vh-150px)] px-4 py-3 space-y-3 scrollbar-hide">
           {loading ? (
-            <p className="text-gray-500 dark:text-gray-400">
-              <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-
-            </p>
+            <div role="status" className="flex justify-center py-6">
+              <span className="h-8 w-8 animate-spin rounded-full border-4 border-purple-500 border-t-transparent" />
+              <span className="sr-only">Loading messages</span>
+            </div>
           ) : (
             <AnimatePresence>
               {messages.map((msg) => (
-                <motion.div
+                <Motion.div
                   key={msg._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -276,7 +312,7 @@ export default function ChatRoom({ activeChat, onBack }) {
                       })}
                     </div>
                   </div>
-                </motion.div>
+                </Motion.div>
               ))}
             </AnimatePresence>
           )}
@@ -287,7 +323,7 @@ export default function ChatRoom({ activeChat, onBack }) {
         {files.length > 0 && (
           <div className="absolute bottom-20 left-0 right-0 flex flex-wrap gap-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3">
             {files.map((file, i) => {
-              const preview = URL.createObjectURL(file);
+              const preview = filePreviews[i];
               return (
                 <div
                   key={i}
@@ -321,7 +357,7 @@ export default function ChatRoom({ activeChat, onBack }) {
         {/* Modal File Viewer */}
         <AnimatePresence>
           {viewer && (
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -338,23 +374,23 @@ export default function ChatRoom({ activeChat, onBack }) {
                 >
                   <Icon path={mdiClose} size={1} />
                 </button>
-                {viewer.endsWith(".mp4") ? (
-                  <video src={viewer} controls className="w-full rounded-lg" />
-                ) : viewer.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                {viewer.mediaType === "video" ? (
+                  <video src={viewer.mediaUrl} controls className="w-full rounded-lg" />
+                ) : viewer.mediaType === "image" ? (
                   <img
-                    src={viewer}
+                    src={viewer.mediaUrl}
                     alt="viewer"
                     className="w-full rounded-lg object-contain max-h-[80vh]"
                   />
                 ) : (
                   <iframe
-                    src={viewer}
+                    src={viewer.mediaUrl}
                     className="w-full h-[80vh] rounded-lg bg-white"
                     title="Document Viewer"
                   ></iframe>
                 )}
               </div>
-            </motion.div>
+            </Motion.div>
           )}
         </AnimatePresence>
 
@@ -390,7 +426,9 @@ export default function ChatRoom({ activeChat, onBack }) {
 
           <button
             type="submit"
-            className="bg-brand hover:bg-brand-accent text-white p-2 rounded-full transition shadow-sm"
+            disabled={sending || (!text.trim() && files.length === 0)}
+            aria-label="Send message"
+            className="rounded-full bg-brand p-2 text-white shadow-sm transition hover:bg-brand-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Icon path={mdiSend} size={1} />
           </button>
@@ -409,9 +447,7 @@ export default function ChatRoom({ activeChat, onBack }) {
             />
           </div>
         )}
-      </motion.div>
+      </Motion.div>
     </AnimatePresence>
   );
 }
-
-

@@ -6,7 +6,8 @@ const postSchema = new mongoose.Schema(
     media: [
       {
         mediaUrl: { type: String, required: true },
-        mediaType: { type: String, enum: ["image", "video"], required: true }
+        mediaType: { type: String, enum: ["image", "video"], required: true },
+        publicId: { type: String },
       }
     ],
     caption: { type: String, maxlength: 2200 },
@@ -22,5 +23,7 @@ const postSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+postSchema.index({ user: 1, createdAt: -1 });
 
 export default mongoose.model("Post", postSchema);

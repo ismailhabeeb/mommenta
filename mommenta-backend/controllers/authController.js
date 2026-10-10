@@ -6,14 +6,31 @@ import jwt from "jsonwebtoken";
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 };
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // ----------- REGISTER -----------
 export const registerUser = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const body = req.body || {};
+    const username = typeof body.username === "string" ? body.username.trim() : "";
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    if (
+      !username ||
+      username.length > 30 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      password.length < 6
+    ) {
+      return res.status(400).json({ msg: "Username, a valid email, and a password of at least 6 characters are required" });
+    }
 
     // Check existing user
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({
+      $or: [
+        { email: { $regex: `^${escapeRegex(email)}$`, $options: "i" } },
+        { username },
+      ],
+    });
     if (existingUser)
       return res.status(400).json({ msg: "User already exists" });
 
@@ -31,6 +48,7 @@ export const registerUser = async (req, res) => {
     res.status(201).json({
       token,
       user: {
+        _id: newUser._id,
         id: newUser._id,
         username: newUser.username,
         email: newUser.email,
@@ -44,11 +62,16 @@ export const registerUser = async (req, res) => {
 // ----------- LOGIN -----------
 export const loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const body = req.body || {};
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const password = typeof body.password === "string" ? body.password : "";
 
     // Check user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({
+      email: { $regex: `^${escapeRegex(email)}$`, $options: "i" },
+    });
     if (!user) return res.status(400).json({ msg: "Invalid credentials" });
+    if (user.isBanned) return res.status(403).json({ msg: "This account is unavailable" });
 
     // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
@@ -60,6 +83,7 @@ export const loginUser = async (req, res) => {
     res.json({
       token,
       user: {
+        _id: user._id,
         id: user._id,
         username: user.username,
         email: user.email,

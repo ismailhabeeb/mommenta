@@ -12,19 +12,31 @@ export default function AddPost() {
     const [media, setMedia] = useState([]); // File[]
     const [showEmoji, setShowEmoji] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [mediaPreviews, setMediaPreviews] = useState([]);
     const textareaRef = useRef(null);
     const emojiPickerRef = useRef(null);
   const navigate = useNavigate();
 
     // Set page title on mount
     useEffect(() => {
-        document.title = "Add New Post | MomentApp";
+        document.title = "Create a Post | Mommenta";
     }, []);
 
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files || []);
-        setMedia((prev) => [...prev, ...files]);
         e.currentTarget.value = null; // reset input
+        const validFiles = files.filter(
+            (file) => (file.type.startsWith("image/") || file.type.startsWith("video/"))
+                && file.size <= 50 * 1024 * 1024
+        );
+        if (validFiles.length !== files.length) {
+            toast.error("Choose images or videos no larger than 50 MB.");
+        }
+        const available = Math.max(0, 5 - media.length);
+        if (validFiles.length > available) {
+            toast.error("A post can contain up to 5 media items.");
+        }
+        setMedia((prev) => [...prev, ...validFiles.slice(0, available)]);
     };
 
     const handleEmojiClick = (emojiData) => {
@@ -39,19 +51,25 @@ export default function AddPost() {
     };
 
     useEffect(() => {
-        return () => {
-            media.forEach((f) => {
-                try {
-                    URL.revokeObjectURL(f.preview);
-                } catch { }
-            });
-        };
-    }, []);
+        const previews = media.map((file) => URL.createObjectURL(file));
+        setMediaPreviews(previews);
+        return () => previews.forEach((preview) => URL.revokeObjectURL(preview));
+    }, [media]);
 
-    const highlightHashtags = (text) =>
-        text
-            ? text.replace(/#(\w+)/g, `<span class="text-blue-500 font-semibold">#$1</span>`)
-            : "What's happening?";
+    const highlightHashtags = (text) => {
+        if (!text) return "What's happening?";
+        const escaped = text.replace(/[&<>"']/g, (character) => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;",
+        })[character]);
+        return escaped.replace(
+            /#(\w+)/g,
+            `<span class="text-blue-500 font-semibold">#$1</span>`
+        );
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -129,9 +147,7 @@ export default function AddPost() {
                 {media.length > 0 && (
                     <div className="mt-4 columns-2 sm:columns-3 gap-3 [column-fill:_balance]">
                         {media.map((file, idx) => {
-                            const preview = file.preview || URL.createObjectURL(file);
-                            if (!file.preview) file.preview = preview;
-
+                            const preview = mediaPreviews[idx];
                             return (
                                 <div
                                     key={idx}
@@ -183,7 +199,7 @@ export default function AddPost() {
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || (!caption.trim() && media.length === 0)}
                         className={`flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-5 py-2 rounded-xl font-semibold shadow ${loading ? "opacity-70 cursor-not-allowed" : "hover:scale-105 transition-transform"
                             }`}
                     >

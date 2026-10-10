@@ -1,113 +1,109 @@
+import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
+import Chat from "./models/Chat.js";
+import User from "./models/User.js";
 
 export const initSocket = (server, app) => {
-  const allowedOrigins = [
+  const allowedOrigins = new Set([
     "http://localhost:5173",
-    "https://mommenta.vercel.app"
-    // process.env.FRONTEND_URL
-  ];
-  // const io = new Server(server, {
-  //   cors: {
-  //     origin: process.env.FRONTEND_URL || "http://localhost:5173",
-  //     credentials: true,
-  //   },
-  // });
+    "https://mommenta.vercel.app",
+    ...(process.env.FRONTEND_URL || "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  ]);
 
   const io = new Server(server, {
-  cors: {
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS policy: origin ${origin} not allowed`));
-      }
+    cors: {
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.has(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error("Origin is not allowed by CORS"));
+        }
+      },
+      credentials: true,
     },
-    credentials: true,
-  },
-});
+  });
+
+  io.use(async (socket, next) => {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error("Authentication required"));
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return next(new Error("Invalid authentication token"));
+    }
+    if (!decoded || typeof decoded === "string" || !decoded.id) {
+      return next(new Error("Invalid authentication token"));
+    }
+
+    let user;
+    try {
+      user = await User.findById(decoded.id).select("_id isBanned");
+    } catch (error) {
+      return next(error);
+    }
+    if (!user || user.isBanned) {
+      return next(new Error("Account is unavailable"));
+    }
+    socket.data.userId = decoded.id.toString();
+    return next();
+  });
 
   const onlineUsers = new Map();
-
-  // Store socket + users globally (for controllers)
   app.set("io", io);
   app.set("onlineUsers", onlineUsers);
 
   io.on("connection", (socket) => {
-    console.log(`⚡ User connected: ${socket.id}`);
+    const userId = socket.data.userId;
+    const userSockets = onlineUsers.get(userId) || new Set();
+    userSockets.add(socket.id);
+    onlineUsers.set(userId, userSockets);
+    socket.join(`user:${userId}`);
+    io.emit("onlineUsers", Array.from(onlineUsers.keys()));
 
-    // User joins after login
-    socket.on("join", (userId) => {
-      if (!userId) return;
-      onlineUsers.set(userId, socket.id);
-      console.log("✅ Online users:", Array.from(onlineUsers.keys()));
-      io.emit("onlineUsers", Array.from(onlineUsers.keys()));
-    });
-
-    // Join private chat room
-    socket.on("joinChat", (chatId) => {
-      socket.join(chatId);
-      console.log(`🗨️ ${socket.id} joined chat ${chatId}`);
-    });
-
-    // Send message (1-to-1)
-    socket.on("sendMessage", ({ senderId, receiverId, text, chatId }) => {
-      const receiverSocket = onlineUsers.get(receiverId);
-
-      if (chatId) {
-        io.to(chatId).emit("receiveMessage", {
-          senderId,
-          text,
-          createdAt: new Date(),
-        });
-      } else if (receiverSocket) {
-        io.to(receiverSocket).emit("receiveMessage", {
-          senderId,
-          text,
-          createdAt: new Date(),
-        });
-      }
-      // typing
-
-      socket.on("typing", ({ chatId, senderId, receiverId }) => {
-        const receiverSocket = onlineUsers.get(receiverId);
-        if (receiverSocket) {
-          io.to(receiverSocket).emit("userTyping", { chatId, senderId });
+    socket.on("joinChat", async (chatId) => {
+      try {
+        const chat = await Chat.exists({ _id: chatId, members: userId });
+        if (!chat) {
+          socket.emit("chatError", { message: "Chat not found or access denied" });
+          return;
         }
-      });
-      socket.on("stopTyping", ({ chatId, senderId, receiverId }) => {
-        const receiverSocket = onlineUsers.get(receiverId);
-        if (receiverSocket) {
-          io.to(receiverSocket).emit("userStopTyping", { chatId, senderId });
+        socket.join(`chat:${chatId}`);
+      } catch (error) {
+        console.error("Socket chat join failed:", error);
+        socket.emit("chatError", { message: "Unable to join chat" });
+      }
+    });
+
+    const emitTypingStatus = async (chatId, event) => {
+      try {
+        const chat = await Chat.findOne({ _id: chatId, members: userId })
+          .select("members")
+          .lean();
+        if (!chat) return;
+        const recipientId = chat.members.find((memberId) => memberId.toString() !== userId);
+        if (recipientId) {
+          io.to(`user:${recipientId}`).emit(event, { chatId, senderId: userId });
         }
-      });
-    });
-
-    // Mark message as read
-    socket.on("messageRead", ({ senderId, receiverId }) => {
-      const senderSocket = onlineUsers.get(senderId);
-      if (senderSocket) {
-        io.to(senderSocket).emit("messageReadConfirmation", { receiverId });
+      } catch (error) {
+        console.error("Socket typing update failed:", error);
       }
-    });
+    };
 
-    // Real-time notification
-    socket.on("sendNotification", ({ receiverId, notification }) => {
-      const receiverSocket = onlineUsers.get(receiverId);
-      if (receiverSocket) {
-        io.to(receiverSocket).emit("newNotification", notification);
-      }
-    });
+    socket.on("typing", (chatId) => emitTypingStatus(chatId, "userTyping"));
+    socket.on("stopTyping", (chatId) => emitTypingStatus(chatId, "userStopTyping"));
 
-    // Handle disconnect
     socket.on("disconnect", () => {
-      for (const [userId, socketId] of onlineUsers.entries()) {
-        if (socketId === socket.id) {
-          onlineUsers.delete(userId);
-          break;
-        }
-      }
+      const sockets = onlineUsers.get(userId);
+      sockets?.delete(socket.id);
+      if (sockets?.size === 0) onlineUsers.delete(userId);
       io.emit("onlineUsers", Array.from(onlineUsers.keys()));
-      console.log(`❌ User disconnected: ${socket.id}`);
     });
   });
+
+  return io;
 };

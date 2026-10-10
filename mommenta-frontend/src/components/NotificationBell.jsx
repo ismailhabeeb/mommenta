@@ -3,12 +3,22 @@ import { useState, useRef, useEffect } from "react";
 // import { useNotifications } from "@/context/NotificationContext";
 import Icon from "@mdi/react";
 import { mdiBellOutline } from "@mdi/js";
-import { useNotifications } from "../context/NotificationContext";
+import { useNotifications } from "../context/useNotifications";
+import toast from "react-hot-toast";
 
 export default function NotificationBell() {
   const { notifications, unreadCount, markAllAsRead } = useNotifications();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllAsRead();
+    } catch (error) {
+      console.error("Unable to mark notifications as read:", error);
+      toast.error("Unable to update notifications.");
+    }
+  };
 
   // 🔒 Close dropdown when clicking outside
   useEffect(() => {
@@ -25,11 +35,13 @@ export default function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       {/* 🔔 Bell Icon */}
       <button
+        type="button"
+        aria-label="Notifications"
+        aria-expanded={open}
         onClick={() => setOpen(!open)}
         className="relative p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
       >
         <Icon path={mdiBellOutline} size={1.1} />
-        uu
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs font-bold rounded-full px-1.5">
             {unreadCount}
@@ -44,7 +56,7 @@ export default function NotificationBell() {
             <h4 className="font-semibold text-gray-800 dark:text-gray-200">Notifications</h4>
             {unreadCount > 0 && (
               <button
-                onClick={markAllAsRead}
+                onClick={handleMarkAllAsRead}
                 className="text-xs text-brand hover:underline"
               >
                 Mark all as read
@@ -70,7 +82,15 @@ export default function NotificationBell() {
                   <div className="flex-1 text-sm text-gray-700 dark:text-gray-300">
                     <p>
                       <span className="font-semibold">{n.sender?.username}</span>{" "}
-                      {n.message}
+                      {n.message || (
+                        n.type === "follow"
+                          ? "started following you."
+                          : n.type === "followRequest"
+                            ? "requested to follow you."
+                            : n.type === "like"
+                              ? "liked your post."
+                              : "commented on your post."
+                      )}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {new Date(n.createdAt).toLocaleString()}

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, use } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import InfiniteScroll from "react-infinite-scroll-component";
 
 import StoryBar from "../components/StoryBar";
@@ -10,7 +10,6 @@ import TopBar from "../components/TopBar";
 import SkeletonLoader from "../components/SkeletonLoader";
 
 import { fetchPosts, getCurrentUser } from "../services";
-import { useAuth } from "../context/AuthContext"; 
 
 export default function Home() {
   // const { user } = useAuth();
@@ -25,8 +24,10 @@ export default function Home() {
   const [page, setPage] = useState(() => Number(sessionStorage.getItem("homePage")) || 1);
   const [hasMore, setHasMore] = useState(true);
   const [user, setUser] = useState({});
+  const [feedError, setFeedError] = useState("");
 
   const scrollContainerRef = useRef(null);
+  const loadingMoreRef = useRef(false);
 
 
  useEffect(() => {
@@ -34,7 +35,6 @@ export default function Home() {
     try {
       const data = await getCurrentUser();
       setUser(data.data);
-      console.log("Fetched user:", data.data);
     } catch (error) {
       console.error("Error fetching user:", error);
     }
@@ -54,7 +54,9 @@ const handleUpdateComments = (postId, newComment) => {
   );
 };
   // Fetch posts with pagination
-  const loadPosts = async (nextPage = page) => {
+  const loadPosts = useCallback(async (nextPage = page) => {
+    if (loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
     try {
       const data = await fetchPosts(nextPage, 10);
 
@@ -66,22 +68,26 @@ const handleUpdateComments = (postId, newComment) => {
       });
 
       setHasMore(data.hasMore);
+      setFeedError("");
       setLoading(false);
 
       // ✅ Save page progress
       sessionStorage.setItem("homePage", nextPage.toString());
     } catch (err) {
       console.error("Error loading posts:", err);
+      setFeedError("We couldn't load the feed. Please try again.");
       setLoading(false);
+    } finally {
+      loadingMoreRef.current = false;
     }
-  };
+  }, [page]);
  
 
 
   // Load posts if not already cached
   useEffect(() => {
     if (posts.length === 0) loadPosts();
-  }, []);
+  }, [posts.length, loadPosts]);
 
   // ✅ Restore scroll position
   useEffect(() => {
@@ -122,6 +128,19 @@ const handleUpdateComments = (postId, newComment) => {
         >
           <StoryBar />
 
+          {feedError && posts.length > 0 && (
+            <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
+              {feedError}{" "}
+              <button
+                type="button"
+                onClick={() => loadPosts(page)}
+                className="font-semibold underline"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           <InfiniteScroll
             dataLength={posts.length}
             next={() => {
@@ -135,16 +154,29 @@ const handleUpdateComments = (postId, newComment) => {
           >
             <div className="space-y-1">
               {posts.length > 0 ? (
-                posts.map((post,i) => (
+                posts.map((post) => (
                   <PostCard
-                    key={i}
+                    key={post._id}
                     post={post}
                     currentusername={user._id}
                     onUpdateComments={handleUpdateComments}
                   />
                 ))
               ) : (
-                <p className="text-center text-gray-500">No posts available.</p>
+                <div className="py-8 text-center text-gray-500">
+                  {feedError ? (
+                    <>
+                      <p role="alert">{feedError}</p>
+                      <button
+                        type="button"
+                        onClick={() => loadPosts(1)}
+                        className="mt-3 font-semibold text-brand hover:underline"
+                      >
+                        Try again
+                      </button>
+                    </>
+                  ) : "No posts available."}
+                </div>
               )}
             </div>
           </InfiniteScroll>

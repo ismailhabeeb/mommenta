@@ -1,7 +1,6 @@
 // src/context/ChatDrawerContext.jsx
-import { createContext, useContext, useState } from "react";
-
-const ChatDrawerContext = createContext();
+import { useState } from "react";
+import ChatDrawerContext from "./chatDrawerContextValue";
 
 export const ChatDrawerProvider = ({ children }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -31,5 +30,3 @@ export const ChatDrawerProvider = ({ children }) => {
     </ChatDrawerContext.Provider>
   );
 };
-
-export const useChatDrawer = () => useContext(ChatDrawerContext);

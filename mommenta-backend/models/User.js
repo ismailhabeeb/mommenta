@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
   website: {type:String},
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  followRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   // 📌 Saved posts
   savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
    // ⚙️ Privacy
