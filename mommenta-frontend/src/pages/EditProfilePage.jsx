@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { updateProfile } from "../services";
+import toast from "react-hot-toast";
 
 export default function EditProfilePage() {
   const navigate = useNavigate();
@@ -16,6 +17,14 @@ export default function EditProfilePage() {
 
   const [preview, setPreview] = useState("");
   const [loading, setLoading] = useState(false);
+  const previewUrl = useRef(null);
+
+  useEffect(
+    () => () => {
+      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    },
+    []
+  );
 
   // ✅ Set initial profile picture safely
   useEffect(() => {
@@ -30,10 +39,16 @@ export default function EditProfilePage() {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setFormData({ ...formData, profilePic: file });
-      setPreview(URL.createObjectURL(file));
+    e.currentTarget.value = "";
+    if (file && (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024)) {
+      toast.error("Choose an image no larger than 5 MB.");
+      return;
     }
+    if (!file) return;
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    previewUrl.current = URL.createObjectURL(file);
+    setFormData((current) => ({ ...current, profilePic: file }));
+    setPreview(previewUrl.current);
   };
 
   const handleSubmit = async (e) => {
@@ -43,20 +58,24 @@ export default function EditProfilePage() {
     try {
       const formDataToSend = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        formDataToSend.append(key, value);
+        if (value !== null) formDataToSend.append(key, value);
       });
 
       const res = await updateProfile(formDataToSend);
-      alert("Profile updated successfully!");
+      toast.success("Profile updated successfully.");
 
       // ✅ Update Auth context and localStorage
-      setUser(res.data.user || res.data);
-      localStorage.setItem("user", JSON.stringify(res.data.user || res.data));
-
-      navigate(`/profile/${user.username}`);
+      const updatedUser = res.data.user || res.data;
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      if (previewUrl.current) {
+        URL.revokeObjectURL(previewUrl.current);
+        previewUrl.current = null;
+      }
+      navigate(`/profile/${updatedUser._id}`);
     } catch (err) {
       console.error("Profile update failed:", err);
-      alert("Error updating profile.");
+      toast.error(err.response?.data?.msg || "Error updating profile.");
     } finally {
       setLoading(false);
     }

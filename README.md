@@ -194,13 +194,18 @@ npm run dev
 
 ### Environment Variables
 
-Create the appropriate `.env` files for the frontend and backend and configure your required environment variables for:
+Create a backend `.env` file in `mommenta-backend/` and configure:
 
-* MongoDB
-* Authentication
-* Cloudinary
-* Backend API URL
-* Other application-specific configuration
+| Variable | Purpose |
+| --- | --- |
+| `MONGO_URI` | MongoDB connection string |
+| `JWT_SECRET` | Secret used to sign and verify authentication tokens |
+| `CLOUD_NAME` | Cloudinary cloud name |
+| `CLOUD_KEY` | Cloudinary API key |
+| `CLOUD_SECRET` | Cloudinary API secret |
+| `FRONTEND_URL` | Allowed frontend origin(s), comma-separated if needed |
+
+For the frontend, optionally set `VITE_API_URL` to the backend API base URL, including `/api` (for example, `http://localhost:5000/api` for local development). If unset, the deployed Mommenta API is used.
 
 **Do not commit your `.env` files or secret credentials to GitHub.**
 

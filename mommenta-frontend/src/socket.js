@@ -1,11 +1,11 @@
 import { getToken } from "./services";
 import { io } from "socket.io-client";
 
-// const SOCKET_URL =  "http://localhost:5000";
-const SOCKET_URL =  "https://mommenta.onrender.com"; // production
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://mommenta.onrender.com/api";
+const SOCKET_URL = API_URL.replace(/\/api\/?$/, "");
 
-export const initSocket = () => {
-  const token = getToken();
+export const initSocket = (token = getToken()) => {
   const socket = io(SOCKET_URL, {
     withCredentials: true,
     auth: { token },

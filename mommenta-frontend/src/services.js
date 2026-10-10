@@ -16,6 +16,11 @@ export const fetchProfile = (userId, page = 1, limit = 9) =>
 export const updateProfile = (data) => API.put("/users/update", data);              //done
 export const followUser = (userId) => API.put(`/users/${userId}/follow`);
 export const unfollowUser = (userId) => API.put(`/users/${userId}/unfollow`);
+export const fetchFollowRequests = () => API.get("/users/follow-requests");
+export const acceptFollowRequest = (userId) =>
+  API.put(`/users/follow-requests/${userId}/accept`);
+export const declineFollowRequest = (userId) =>
+  API.delete(`/users/follow-requests/${userId}`);
 export const fetchFollowers = (userId) => API.get(`/users/${userId}/followers`);
 export const fetchFollowing = (userId) => API.get(`/users/${userId}/following`);
 
@@ -30,6 +35,7 @@ export const fetchPosts = async (page = 1, limit = 10) => {                     
 };
 export const fetchPostById = (id) => API.get(`/posts/${id}`);
 export const deletePost = (id) => API.delete(`/posts/${id}`);
+export const editPost = (id, data) => API.put(`/posts/${id}`, data);
 export const likePost = (id) => API.put(`/posts/${id}/like`);
 export const addComment = (postId, data) =>
   API.post(`/posts/${postId}/comment`, data);
@@ -38,7 +44,7 @@ export const fetchComments = (postId) => API.get(`/posts/${postId}/comments`);
 /* ================================
    STORIES
 ================================ */
-export const createStory = (data) => API.post("/stories", data);
+export const createStory = (data, config) => API.post("/stories", data, config);
 export const fetchStories = () => API.get("/stories");
 export const fetchUserStories = (userId) => API.get(`/stories/user/${userId}`);
 export const deleteStory = (id) => API.delete(`/stories/${id}`);
@@ -73,34 +79,39 @@ export const fetchTrendingStories = () => API.get("/explore/stories");
    HASHTAGS
 ================================ */
 export const fetchPostsByHashtag = (tag) => API.get(`/hashtags/${tag}`);
-export const fetchTrendingHashtags = () => API.get("/hashtags/trending");
+export const fetchTrendingHashtags = () => API.get("/explore/hashtags");
 
 /* ================================
    NOTIFICATIONS
 ================================ */
 export const fetchNotifications = () => API.get("/notifications");
 export const markAsRead = (notifId) =>
-  API.post(`/notifications/${notifId}/read`);
+  API.put(`/notifications/${notifId}/read`);
+export const markAllNotificationsAsRead = () =>
+  API.put("/notifications/read-all");
 export const clearNotifications = () => API.delete("/notifications");
 
 /* ================================
    SAVE / BOOKMARKS
 ================================ */
-export const savePost = (postId) => API.post(`/save/${postId}`);
-export const unsavePost = (postId) => API.delete(`/save/${postId}`);
-export const fetchSavedPosts = () => API.get("/save");
+export const savePost = (postId) => API.post(`/saves/${postId}`);
+export const unsavePost = (postId) => API.delete(`/saves/${postId}`);
+export const fetchSavedPosts = () => API.get("/saves");
 
 /* ================================
    SEARCH
 ================================ */
-export const searchUsers = (query) => API.get(`/search/users?q=${query}`);
-export const searchPosts = (query) => API.get(`/search/posts?q=${query}`);
-export const searchHashtags = (query) => API.get(`/search/hashtags?q=${query}`);
+export const searchUsers = (query) =>
+  API.get(`/search?q=${encodeURIComponent(query)}`);
+export const searchPosts = (query) =>
+  API.get(`/search/posts?q=${encodeURIComponent(query)}`);
+export const searchHashtags = (query) =>
+  API.get(`/search/hashtags?q=${encodeURIComponent(query)}`);
 
 /* ================================
    SETTINGS
 ================================ */
-export const updateSettings = (data) => API.put("/settings", data);
+export const updateSettings = (data) => API.put("/settings/profile", data);
 export const changePassword = (data) => API.put("/settings/password", data);
 export const updatePrivacy = (data) => API.put("/settings/privacy", data);
 
@@ -108,8 +119,7 @@ export const updatePrivacy = (data) => API.put("/settings/privacy", data);
    ADMIN
 ================================ */
 export const fetchAllUsers = () => API.get("/admin/users");
-export const blockUser = (userId) => API.post(`/admin/users/${userId}/block`);
-export const unblockUser = (userId) =>
-  API.post(`/admin/users/${userId}/unblock`);
+export const blockUser = (userId) => API.put(`/admin/ban/${userId}`);
+export const unblockUser = (userId) => API.put(`/admin/unban/${userId}`);
 export const fetchAllPosts = () => API.get("/admin/posts");
-export const deletePostAdmin = (postId) => API.delete(`/admin/posts/${postId}`);
+export const deletePostAdmin = (postId) => API.delete(`/admin/post/${postId}`);

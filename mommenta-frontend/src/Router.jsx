@@ -10,6 +10,7 @@ import Landing from "./pages/Landing";
 import ProfilePage from "./pages/Profile";
 import AddPost from "./pages/AddPost";
 import EditProfilePage from "./pages/EditProfilePage";
+import NotificationsPage from "./pages/NotificationsPage";
 export default function Routerr() {
   return (
     <BrowserRouter>
@@ -52,6 +53,14 @@ export default function Routerr() {
             </ProtectedRoute>
           }
 
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <NotificationsPage />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/create"

@@ -8,12 +8,12 @@ import {
   mdiPlus,
 } from "@mdi/js";
 import { Link, useLocation } from "react-router-dom";
-import { useChatDrawer } from "../context/ChatDrawerContext"; // ✅ import
-import { useAuth } from "../context/AuthContext";
+import { useChatDrawer } from "../context/useChatDrawer";
+import { useAuth } from "../context/useAuth";
 
 export default function DesktopNav({ username }) {
   const location = useLocation();
- const { isDrawerOpen, activeChat, setActiveChat, openChatDrawer, closeChat } =
+ const { isDrawerOpen, openChatDrawer, closeChat } =
     useChatDrawer();
 
    const toggleChatPanel = () => {
@@ -21,10 +21,9 @@ export default function DesktopNav({ username }) {
     else openChatDrawer();
   };
 
-  const handleBack = () => setActiveChat(null);
   const { user } = useAuth();
 
-  const currentUsername = username || user?.username || "me";
+  const currentUsername = username || user?._id || user?.id || "me";
 
   return (
     <div className="hidden lg:flex flex-col fixed right-6 top-20 w-20 h-[calc(100vh-5rem)] bg-gray-100 dark:bg-gray-900 rounded-2xl shadow-md p-4 justify-between">
@@ -32,7 +31,7 @@ export default function DesktopNav({ username }) {
       <div className="flex flex-col items-center gap-6">
 
         {/* 🏠 Home */}
-        <Link to="/" title="Home" className="flex flex-col items-center">
+        <Link         to="/home" title="Home" className="flex flex-col items-center">
           <Icon
             path={mdiHomeOutline}
             size={1.5}
@@ -61,12 +60,9 @@ export default function DesktopNav({ username }) {
 
         {/* 💬 Messages — opens chat drawer instead of redirect */}
         <button
-          // onClick={openChatDrawer}
-            onClick={toggleChatPanel}
-
-          onSelectChat={setActiveChat}
-          activeChatId={activeChat?._id}
+          onClick={toggleChatPanel}
           title="Messages"
+          aria-label="Open messages"
           className="flex flex-col items-center focus:outline-none"
         >
           <Icon

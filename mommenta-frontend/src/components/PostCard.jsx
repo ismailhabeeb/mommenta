@@ -9,7 +9,7 @@ import {
   mdiVolumeHigh,
   mdiHeart,
 } from "@mdi/js";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination, Thumbs } from "swiper/modules";
 import "swiper/css";
@@ -18,6 +18,8 @@ import "swiper/css/pagination";
 import "swiper/css/thumbs";
 import { Link } from "react-router-dom";
 import { addComment, likePost } from "../services";
+import { useAuth } from "../context/useAuth";
+import toast from "react-hot-toast";
 
 // highlight hashtags in caption
 function renderCaption(text = "") {
@@ -39,6 +41,8 @@ function renderCaption(text = "") {
 
 
 export default function PostCard({ post, currentusername, onUpdateComments }) {
+  const { user } = useAuth();
+  const currentUserId = user?._id || user?.id || currentusername;
   const [comment, setComment] = useState("");
   const [showComments, setShowComments] = useState(false);
   const [expandedComments, setExpandedComments] = useState({});
@@ -49,8 +53,15 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
   const videoRefs = useRef([]);
   const observer = useRef(null);
   const [captionExpanded, setCaptionExpanded] = useState(false);
-  const [likes, setLikes] = useState(post.likes.length);
-  const [liked, setLiked] = useState(post.likes.includes(post.currentUserId));
+  const [likes, setLikes] = useState(post.likes?.length || 0);
+  const [liked, setLiked] = useState(() =>
+    post.likes?.some((id) => id.toString() === currentUserId)
+  );
+
+  useEffect(() => {
+    setLikes(post.likes?.length || 0);
+    setLiked(post.likes?.some((id) => id.toString() === currentUserId) || false);
+  }, [post._id, post.likes, currentUserId]);
 
 
   function renderLongCaption(caption) {
@@ -81,19 +92,14 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
     if (!comment.trim()) return;
 
     try {
-      const res = await addComment(post._id, { text: comment });  // <-- FIXED
-
-      // Optimistic update
-      onUpdateComments?.(post._id, {
-        id: Date.now(),
-        user: currentusername,
-        text: comment,
-        createdAt: new Date(),
-      });
+      const res = await addComment(post._id, { text: comment });
+      const newComment = res.data.comments?.at(-1);
+      if (newComment) onUpdateComments?.(post._id, newComment);
 
       setComment("");
     } catch (err) {
       console.error("Comment Error:", err);
+      toast.error(err.response?.data?.msg || "Comment could not be posted.");
     }
   };
 
@@ -101,13 +107,12 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
   const handleLike = async () => {
     try {
       const res = await likePost(post._id);
-      // Update UI
       setLikes(res.data.likes);
-      // console.log("Like msg:", res.data.msg);
 
-      setLiked(res?.data.msg === "Liked");
+      setLiked(res.data.msg === "Liked");
     } catch (err) {
       console.error(err);
+      toast.error(err.response?.data?.msg || "Like could not be updated.");
     }
   };
   useEffect(() => {
@@ -121,14 +126,14 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
     setExpandedComments((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const renderCommentText = (c) => {
-    const isExpanded = expandedComments[c.id];
+    const isExpanded = expandedComments[c._id];
     if (c.text.length > 100) {
       return (
         <>
           {isExpanded ? c.text : c.text.substring(0, 100) + "... "}
           <span
             className="text-blue-600 dark:text-blue-400 cursor-pointer ml-1"
-            onClick={() => toggleCommentExpand(c.id)}
+            onClick={() => toggleCommentExpand(c._id)}
           >
             {isExpanded ? "Show less" : "Show more"}
           </span>
@@ -138,7 +143,7 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
     return c.text;
   };
 
-  const mediaItems = post.media || [];
+  const mediaItems = useMemo(() => post.media || [], [post.media]);
 
   // autoplay video on scroll into view
   useEffect(() => {
@@ -149,7 +154,11 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
         entries.forEach((entry) => {
           const video = entry.target;
           if (entry.isIntersecting) {
-            video.play().catch(() => { });
+            video.play().catch((error) => {
+              if (error.name !== "NotAllowedError") {
+                console.error("Post video playback failed:", error);
+              }
+            });
           } else {
             video.pause();
           }
@@ -163,9 +172,6 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
     return () => observer.current?.disconnect();
   }, [mediaItems]);
 
-  useEffect(() => {
-
-  })
   return (
     <div className="bg-white dark:text-gray-300 dark:bg-black border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden mb-1 w-full group transition-all ">
       {/* Header */}
@@ -318,7 +324,7 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
 
       {/* Caption */}
       <div className="px-4 text-sm text-gray-900 dark:text-gray-100">
-        <p className="font-semibold mb-1 text-purple">{post?.likes.length || 0} likes</p>
+        <p className="font-semibold mb-1 text-purple">{likes} likes</p>
         <p className="w-full p-1 rounded-2xl">
           <span className="font-semibold mr-2 bg-gray-200 dark:bg-gray-500 px-2 rounded-3xl">{post.user?.username}</span>
           {/* {renderCaption(post.caption)} */}

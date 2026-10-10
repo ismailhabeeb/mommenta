@@ -11,7 +11,7 @@ export default function BottomNav({ username }) {
   return (
     <>
       {/* Wrapper for positioning */}
-      <div className="fixed gap-3 bottom-4 left-1/2 -translate-x-1/2 w-[100%] max-w-md flex items-end justify-cente z-30 lg:hidden">
+      <div className="fixed gap-3 bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md flex items-end justify-center z-30 lg:hidden">
         {/* Glass Bottom Bar */}
         <div className="flex justify-around items-center w-[90%]  bg-white/50 dark:bg-gray-900/50 backdrop-blur-lg border border-gray-200/40 dark:border-gray-700/40 shadow-lg rounded-3xl px-6 py-3">
           {/* Home */}

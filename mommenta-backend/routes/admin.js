@@ -1,6 +1,8 @@
 import express from "express";
 import {
   reportPost,
+  getAllPosts,
+  getAllUsers,
   getReports,
   removePost,
   banUser,
@@ -15,6 +17,8 @@ const router = express.Router();
 router.post("/report", authMiddleware, reportPost);
 
 // Admin-only routes
+router.get("/users", authMiddleware, adminMiddleware, getAllUsers);
+router.get("/posts", authMiddleware, adminMiddleware, getAllPosts);
 router.get("/reports", authMiddleware, adminMiddleware, getReports);
 router.delete("/post/:postId", authMiddleware, adminMiddleware, removePost);
 router.put("/ban/:userId", authMiddleware, adminMiddleware, banUser);

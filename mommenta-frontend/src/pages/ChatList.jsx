@@ -1,8 +1,8 @@
 // src/pages/ChatList.jsx
-import { useEffect, useState, useContext } from "react";
-import { useSocket } from "../context/SocketContext";
-import { fetchConversations, getCurrentUser } from "../services";
-import { useAuth } from "../context/AuthContext";
+import { useEffect, useState } from "react";
+import { useSocket } from "../context/useSocket";
+import { fetchConversations } from "../services";
+import { useAuth } from "../context/useAuth";
 
 export default function ChatList({ onSelectChat, activeChatId }) {
   const [conversations, setConversations] = useState([]);
@@ -21,7 +21,6 @@ export default function ChatList({ onSelectChat, activeChatId }) {
       try {
         const { data } = await fetchConversations();
         setConversations(data);
-        console.log(data)
       } catch (err) {
         console.error("Error fetching conversations:", err);
       } finally {
@@ -35,16 +34,17 @@ export default function ChatList({ onSelectChat, activeChatId }) {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("onlineUsers", (users) => setOnlineUsers(users));
+    const onOnlineUsers = (users) => setOnlineUsers(users);
+    socket.on("onlineUsers", onOnlineUsers);
 
-    return () => socket.off("onlineUsers");
+    return () => socket.off("onlineUsers", onOnlineUsers);
   }, [socket]);
 
   // ✉️ Update chat previews in real-time
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("receiveMessage", (message) => {
+    const onReceiveMessage = (message) => {
       setConversations((prev) => {
         const updated = [...prev];
         const idx = updated.findIndex((c) => c._id === message.chatId);
@@ -53,7 +53,7 @@ export default function ChatList({ onSelectChat, activeChatId }) {
           updated[idx].lastMessage = {
             text: message.text,
             createdAt: message.createdAt,
-            sender: { _id: message.senderId },
+            sender: { _id: message.sender?._id || message.senderId },
           };
           // Move updated chat to top
           const [chat] = updated.splice(idx, 1);
@@ -61,29 +61,30 @@ export default function ChatList({ onSelectChat, activeChatId }) {
         }
         return updated;
       });
-    });
+    };
+    socket.on("receiveMessage", onReceiveMessage);
 
-    return () => socket.off("receiveMessage");
+    return () => socket.off("receiveMessage", onReceiveMessage);
   }, [socket]);
 
   // ✍️ Typing indicator
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("userTyping", ({ chatId, senderId }) => {
+    const onUserTyping = ({ chatId }) => {
       setTypingUsers((prev) => {
         if (!prev.includes(chatId)) return [...prev, chatId];
         return prev;
       });
-    });
+    };
 
-    socket.on("userStopTyping", ({ chatId }) => {
+    const onUserStopTyping = ({ chatId }) => {
       setTypingUsers((prev) => prev.filter((id) => id !== chatId));
-    });
+    };
 
     return () => {
-      socket.off("userTyping");
-      socket.off("userStopTyping");
+      socket.off("userTyping", onUserTyping);
+      socket.off("userStopTyping", onUserStopTyping);
     };
   }, [socket]);
 
@@ -102,7 +103,8 @@ export default function ChatList({ onSelectChat, activeChatId }) {
       <h2 className="p-4 text-xl font-semibold border-b">Chats</h2>
 
       {conversations.map((chat) => {
-        const otherUser = chat.members.find((m) => m._id !==  currentUser?._id );
+        const currentUserId = currentUser?._id || currentUser?.id;
+        const otherUser = chat.members.find((m) => m._id !== currentUserId);
         const lastMsg = chat.lastMessage?.text || "No messages yet";
 
         return (

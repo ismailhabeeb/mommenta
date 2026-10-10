@@ -8,17 +8,21 @@ import {
   mdiClose,
 } from "@mdi/js";
 import { Link, useParams } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import {
   startConversation,
   fetchProfile,
   followUser,
   unfollowUser,
+  fetchFollowRequests,
+  acceptFollowRequest,
+  declineFollowRequest,
 } from "../services";
 import image1 from "../assets/images/Maud.jpg";
 import ChatRoom from "./ChatRoom";
-import { useChatDrawer } from "../context/ChatDrawerContext";
+import { useChatDrawer } from "../context/useChatDrawer";
 import Preloader from "../components/Preloader";
+import toast from "react-hot-toast";
 
 export default function ProfilePage() {
   const { user: currentUser } = useAuth();
@@ -26,6 +30,8 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState(null);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [followRequests, setFollowRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creatingChat, setCreatingChat] = useState(false);
 
@@ -33,7 +39,7 @@ export default function ProfilePage() {
   const [showChatModal, setShowChatModal] = useState(false);
   // const [activeChat, setActiveChat] = useState(null);
 
-    const { setActiveChat,activeChat, openChat,openChatDrawer } = useChatDrawer();
+    const { setActiveChat, activeChat } = useChatDrawer();
   
   useEffect(() => {
     const loadProfile = async () => {
@@ -46,8 +52,19 @@ export default function ProfilePage() {
           posts: data.posts,
           isFollowing: data.isFollowing,
           isOwner: data.isOwner,
+          isPrivate: data.isPrivate,
+          postsCount: data.postsCount,
+          followerCount: data.followerCount,
+          followingCount: data.followingCount,
         });
         setIsFollowing(data.isFollowing || false);
+        setIsPending(data.isPending || false);
+        if (data.isOwner) {
+          const { data: requests } = await fetchFollowRequests();
+          setFollowRequests(requests);
+        } else {
+          setFollowRequests([]);
+        }
       } catch (err) {
         console.error("Failed to load profile:", err);
       } finally {
@@ -60,15 +77,39 @@ export default function ProfilePage() {
 
   const handleFollowToggle = async () => {
     try {
-      if (isFollowing) {
-        await unfollowUser(profile._id);
+      if (isFollowing || isPending) {
+        const { data } = await unfollowUser(profile._id);
         setIsFollowing(false);
+        setIsPending(Boolean(data.isPending));
       } else {
-        await followUser(profile._id);
-        setIsFollowing(true);
+        const { data } = await followUser(profile._id);
+        setIsFollowing(Boolean(data.isFollowing));
+        setIsPending(Boolean(data.isPending));
       }
     } catch (err) {
       console.error("Follow/unfollow failed:", err);
+      toast.error(err.response?.data?.msg || "Unable to update follow status.");
+    }
+  };
+
+  const respondToFollowRequest = async (requester, accept) => {
+    try {
+      if (accept) {
+        await acceptFollowRequest(requester._id);
+        setProfile((current) => ({
+          ...current,
+          followerCount: (current.followerCount || current.followers?.length || 0) + 1,
+          followers: [...(current.followers || []), requester],
+        }));
+      } else {
+        await declineFollowRequest(requester._id);
+      }
+      setFollowRequests((current) =>
+        current.filter((request) => request._id !== requester._id)
+      );
+    } catch (err) {
+      console.error("Follow request update failed:", err);
+      toast.error(err.response?.data?.msg || "Unable to update follow request.");
     }
   };
 
@@ -76,7 +117,6 @@ export default function ProfilePage() {
   const handleMessageClick = async () => {
     try {
       setCreatingChat(true);
-      console.log(profile)
       const res = await startConversation(profile._id);
       // setActiveChat(res.data);
       setActiveChat(res.data);
@@ -84,7 +124,7 @@ export default function ProfilePage() {
       setShowChatModal(true);
     } catch (err) {
       console.error("Error accessing chat:", err);
-      alert("Failed to open chat.");
+      toast.error(err.response?.data?.message || "Unable to open this conversation.");
     } finally {
       setCreatingChat(false);
     }
@@ -130,12 +170,12 @@ export default function ProfilePage() {
                 <button
                   onClick={handleFollowToggle}
                   className={`text-sm px-4 py-1 rounded-lg border transition ${
-                    isFollowing
+                    isFollowing || isPending
                       ? "bg-gray-200 dark:bg-gray-700"
                       : "bg-brand text-white"
                   }`}
                 >
-                  {isFollowing ? "Unfollow" : "Follow"}
+                  {isFollowing ? "Unfollow" : isPending ? "Requested" : "Follow"}
                 </button>
 
                 <button
@@ -152,13 +192,13 @@ export default function ProfilePage() {
 
           <div className="flex gap-6 mt-3 text-gray-700 dark:text-gray-300">
             <span>
-              <b>{profile.posts?.length || 0}</b> posts
+              <b>{profile.postsCount ?? profile.posts?.length ?? 0}</b> posts
             </span>
             <span>
-              <b>{profile.followers?.length || 0}</b> followers
+              <b>{profile.followerCount ?? profile.followers?.length ?? 0}</b> followers
             </span>
             <span>
-              <b>{profile.following?.length || 0}</b> following
+              <b>{profile.followingCount ?? profile.following?.length ?? 0}</b> following
             </span>
           </div>
 
@@ -181,6 +221,46 @@ export default function ProfilePage() {
 
       {/* Divider */}
       <div className="border-t mt-6" />
+
+      {profile.isOwner && followRequests.length > 0 && (
+        <section aria-labelledby="follow-requests-heading" className="mt-5 rounded-2xl border border-gray-200 p-4 dark:border-gray-800">
+          <h3 id="follow-requests-heading" className="mb-3 font-semibold">
+            Follow requests ({followRequests.length})
+          </h3>
+          <ul className="space-y-3">
+            {followRequests.map((request) => (
+              <li key={request._id} className="flex items-center gap-3">
+                <img
+                  src={request.profilePic || "https://api.dicebear.com/9.x/thumbs/svg?seed=placeholder"}
+                  alt=""
+                  className="h-9 w-9 rounded-full object-cover"
+                />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium">{request.username}</span>
+                <button
+                  type="button"
+                  onClick={() => respondToFollowRequest(request, true)}
+                  className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white"
+                >
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  onClick={() => respondToFollowRequest(request, false)}
+                  className="rounded-lg px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  Decline
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {profile.isPrivate && !profile.isOwner && !isFollowing && (
+        <p className="mt-6 rounded-xl bg-gray-100 p-4 text-center text-sm text-gray-600 dark:bg-gray-900 dark:text-gray-300">
+          This account is private. Send a follow request to see its posts.
+        </p>
+      )}
 
       {/* Tabs */}
       <div className="flex justify-center gap-12 mt-3 text-sm font-medium dark:text-gray-300">

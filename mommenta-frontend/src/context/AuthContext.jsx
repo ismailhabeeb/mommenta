@@ -1,8 +1,7 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { login, signup, logout, getCurrentUser } from "../services";
+import AuthContext from "./authContextValue";
 // import API from "../api.js"; // axios instance
-
-const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -14,11 +13,13 @@ export function AuthProvider({ children }) {
     const initAuth = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token) return null; // ⛔ avoid calling without token
-        const res = await getCurrentUser(); // API already attaches token
+        if (!token) return;
+        const res = await getCurrentUser();
         setUser(res.data);
-        console.log(res.data)
-      } catch {
+      } catch (error) {
+        console.error("Unable to restore the signed-in user:", error);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
         setUser(null);
       } finally {
         setLoading(false);
@@ -41,7 +42,10 @@ export function AuthProvider({ children }) {
       localStorage.setItem("token", token);
     }
 
-    setUser(user || null);
+    const authenticatedUser = user ? { ...user, _id: user._id || user.id } : null;
+    setUser(authenticatedUser);
+    setLoading(false);
+    if (authenticatedUser) localStorage.setItem("user", JSON.stringify(authenticatedUser));
     return res.data;
   };
 
@@ -53,16 +57,21 @@ export function AuthProvider({ children }) {
       localStorage.setItem("token", token);
     }
 
-    setUser(user || null);
+    const authenticatedUser = user ? { ...user, _id: user._id || user.id } : null;
+    setUser(authenticatedUser);
+    setLoading(false);
+    if (authenticatedUser) localStorage.setItem("user", JSON.stringify(authenticatedUser));
     return res.data;
   };
 
-
   const handleLogout = async () => {
-    await logout();
-    localStorage.removeItem("token");
-    // delete API.defaults.headers.common["Authorization"];
-    setUser(null);
+    try {
+      await logout();
+    } finally {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setUser(null);
+    }
   };
 
   return (
@@ -80,8 +89,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

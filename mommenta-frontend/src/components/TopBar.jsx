@@ -1,11 +1,11 @@
 // src/components/TopBar.jsx
 import Icon from "@mdi/react";
 import { mdiMessageOutline, mdiClose } from "@mdi/js";
-import logo from "../assets/images/logo.png";
 import ChatList from "../pages/ChatList";
 import ChatRoom from "../pages/ChatRoom";
-import { useChatDrawer } from "../context/ChatDrawerContext";
+import { useChatDrawer } from "../context/useChatDrawer";
 import LogoAnimated from "./Logo";
+import NotificationBell from "./NotificationBell";
 
 export default function TopBar() {
   const { isDrawerOpen, activeChat, setActiveChat, openChatDrawer, closeChat } =
@@ -46,12 +46,15 @@ export default function TopBar() {
 
         {/* Right Icons */}
         <div className="flex items-center gap-4">
-          <Icon
-            path={mdiMessageOutline}
-            size={1.5}
-            className="text-gray-600 dark:text-gray-300 cursor-pointer hover:text-brand transition"
+          <NotificationBell />
+          <button
+            type="button"
+            aria-label="Open messages"
             onClick={toggleChatPanel}
-          />
+            className="rounded-full p-2 text-gray-600 transition hover:bg-gray-100 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            <Icon path={mdiMessageOutline} size={1.5} />
+          </button>
         </div>
       </div>
 
