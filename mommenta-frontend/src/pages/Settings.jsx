@@ -11,9 +11,19 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { changePassword, updatePrivacy } from "../services";
 import toast from "react-hot-toast";
+import { mdiBellOutline } from "@mdi/js";
+import {
+    disableBrowserNotifications,
+    enableBrowserNotifications,
+} from "../services/pushNotifications.js";
+import { isPushSupported, PUSH_OPT_IN_KEY } from "../firebase.js";
 
 export default function Settings() {
     const [darkMode, setDarkMode] = useState(false);
+    const [notifications, setNotifications] = useState(
+        () => localStorage.getItem(PUSH_OPT_IN_KEY) === "true"
+    );
+    const [notificationBusy, setNotificationBusy] = useState(false);
     const [isPrivate, setIsPrivate] = useState(false);
     const [oldPassword, setOldPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
@@ -50,9 +60,30 @@ export default function Settings() {
         }
     }, [darkMode]);
 
-    // Placeholder handlers
+    const handleNotificationToggle = async () => {
+        setNotificationBusy(true);
+        try {
+            if (notifications) {
+                await disableBrowserNotifications();
+                setNotifications(false);
+                toast.success("Browser notifications disabled");
+            } else {
+                await enableBrowserNotifications();
+                setNotifications(true);
+                toast.success("Browser notifications enabled");
+            }
+        } catch (error) {
+            toast.error(error.message || "Could not update browser notifications");
+        } finally {
+            setNotificationBusy(false);
+        }
+    };
+
+    const pushSupported = isPushSupported();
+    const permissionDenied = typeof Notification !== "undefined" && Notification.permission === "denied";
+
+    // Placeholder handler
     const handleAddAccount = () => alert("Add Account clicked!");
-    // const handleLogout = () => alert("Logout clicked!");
 
     const handleLogout = async () => {
         try {
@@ -107,7 +138,6 @@ export default function Settings() {
             setSavingPrivacy(false);
         }
     };
-
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 md:p-6 flex flex-col gap-6">
             <h1 className="text-2xl font-bold mb-6 text-center md:text-left">
@@ -144,23 +174,50 @@ export default function Settings() {
 
 
                 {/* Notifications */}
-                <div className="card flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Icon path={mdiLockOutline} size={1} />
-                        <span>{isPrivate ? "Private account" : "Public account"}</span>
+                <div className="card flex flex-col gap-5">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <Icon path={mdiLockOutline} size={1} />
+                            <span>{isPrivate ? "Private account" : "Public account"}</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={isPrivate}
+                                disabled={savingPrivacy}
+                                aria-label="Private account"
+                                onChange={handlePrivacyChange}
+                                className="peer sr-only"
+                            />
+                            <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:bg-brand transition-all"></div>
+                            <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow transform transition-transform peer-checked:translate-x-5"></div>
+                        </label>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={isPrivate}
-                            disabled={savingPrivacy}
-                            aria-label="Private account"
-                            onChange={handlePrivacyChange}
-                            className="peer sr-only"
-                        />
-                        <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:bg-brand transition-all"></div>
-                        <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow transform transition-transform peer-checked:translate-x-5"></div>
-                    </label>
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <Icon path={mdiBellOutline} size={1} />
+                            <div>
+                                <span className="font-medium">Browser Notifications</span>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    {notifications
+                                        ? "Enabled for this browser"
+                                        : permissionDenied
+                                            ? "Blocked by browser settings; change permission there to enable."
+                                            : pushSupported
+                                                ? "Optional alerts from Mommenta on this device."
+                                                : "Unavailable in this browser or environment."}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            className={notifications ? "btn btn-primary" : "btn btn-gradient"}
+                            onClick={handleNotificationToggle}
+                            disabled={notificationBusy || !user || (!notifications && (!pushSupported || permissionDenied))}
+                        >
+                            {notificationBusy ? "Please wait…" : notifications ? "Turn off" : "Enable"}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Change Password */}

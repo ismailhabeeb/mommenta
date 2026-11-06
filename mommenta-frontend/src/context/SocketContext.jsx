@@ -17,6 +17,7 @@ export const SocketProvider = ({ children }) => {
 
     const s = initSocket(localStorage.getItem("token"));
     setSocket(s);
+    s.emit("join");
 
     const onNotification = (notification) => addNotification(notification);
     s.on("newNotification", onNotification);

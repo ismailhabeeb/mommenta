@@ -1,7 +1,18 @@
 import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
+import mongoose from "mongoose";
 import Chat from "./models/Chat.js";
 import User from "./models/User.js";
+
+const isValidConversationId = (id) =>
+  typeof id === "string" && /^[a-f\d]{24}$/i.test(id);
+
+const acknowledge = (callback, response) => {
+  if (typeof callback === "function") callback(response);
+};
+
+const isConversationMember = (chatId, userId) =>
+  Chat.exists({ _id: chatId, members: userId });
 
 export const initSocket = (server, app) => {
   const allowedOrigins = new Set([
@@ -40,17 +51,16 @@ export const initSocket = (server, app) => {
       return next(new Error("Invalid authentication token"));
     }
 
-    let user;
     try {
-      user = await User.findById(decoded.id).select("_id isBanned");
+      const user = await User.findById(decoded.id).select("_id isBanned");
+      if (!user || user.isBanned) {
+        return next(new Error("Account is unavailable"));
+      }
+      socket.data.userId = user._id.toString();
+      return next();
     } catch (error) {
       return next(error);
     }
-    if (!user || user.isBanned) {
-      return next(new Error("Account is unavailable"));
-    }
-    socket.data.userId = decoded.id.toString();
-    return next();
   });
 
   const onlineUsers = new Map();
@@ -65,37 +75,84 @@ export const initSocket = (server, app) => {
     socket.join(`user:${userId}`);
     io.emit("onlineUsers", Array.from(onlineUsers.keys()));
 
-    socket.on("joinChat", async (chatId) => {
+    // Compatibility event: identity is already established by JWT middleware.
+    socket.on("join", () => {});
+
+    socket.on("joinChat", async (chatId, callback) => {
+      if (!isValidConversationId(chatId)) {
+        socket.emit("chatError", { message: "Chat not found or access denied" });
+        acknowledge(callback, { ok: false, error: "Unable to join chat" });
+        return;
+      }
+
       try {
-        const chat = await Chat.exists({ _id: chatId, members: userId });
+        const chat = await isConversationMember(chatId, userId);
         if (!chat) {
           socket.emit("chatError", { message: "Chat not found or access denied" });
+          acknowledge(callback, { ok: false, error: "Unable to join chat" });
           return;
         }
-        socket.join(`chat:${chatId}`);
-      } catch (error) {
-        console.error("Socket chat join failed:", error);
+        await socket.join(`chat:${chatId}`);
+        acknowledge(callback, { ok: true });
+      } catch {
         socket.emit("chatError", { message: "Unable to join chat" });
+        acknowledge(callback, { ok: false, error: "Unable to join chat" });
       }
     });
 
-    const emitTypingStatus = async (chatId, event) => {
+    const emitTypingStatus = async (payload, event) => {
+      const chatId = typeof payload === "string" ? payload : payload?.chatId;
+      if (!isValidConversationId(chatId)) return;
+
       try {
-        const chat = await Chat.findOne({ _id: chatId, members: userId })
-          .select("members")
-          .lean();
+        const chat = await isConversationMember(chatId, userId);
         if (!chat) return;
-        const recipientId = chat.members.find((memberId) => memberId.toString() !== userId);
-        if (recipientId) {
-          io.to(`user:${recipientId}`).emit(event, { chatId, senderId: userId });
-        }
-      } catch (error) {
-        console.error("Socket typing update failed:", error);
+        socket.to(`chat:${chatId}`).emit(event, { chatId, senderId: userId });
+      } catch {
+        // Silently reject unavailable or unauthorized conversation checks.
       }
     };
 
-    socket.on("typing", (chatId) => emitTypingStatus(chatId, "userTyping"));
-    socket.on("stopTyping", (chatId) => emitTypingStatus(chatId, "userStopTyping"));
+    socket.on("userTyping", (payload) => emitTypingStatus(payload, "userTyping"));
+    socket.on("userStopTyping", (payload) =>
+      emitTypingStatus(payload, "userStopTyping")
+    );
+
+    // Socket event is relay-only; REST remains the single persistence path.
+    socket.on("sendMessage", async (payload, callback) => {
+      const chatId = typeof payload?.chatId === "string" ? payload.chatId : "";
+      const text = typeof payload?.text === "string" ? payload.text.trim() : "";
+      if (!isValidConversationId(chatId) || !text || text.length > 5000) {
+        acknowledge(callback, { ok: false, error: "Invalid message" });
+        return;
+      }
+
+      try {
+        const isMember = await isConversationMember(chatId, userId);
+        if (!isMember) {
+          acknowledge(callback, { ok: false, error: "Unable to send message" });
+          return;
+        }
+
+        io.to(`chat:${chatId}`).emit("receiveMessage", {
+          senderId: userId,
+          chatId,
+          text,
+          createdAt: new Date(),
+        });
+        acknowledge(callback, { ok: true });
+      } catch {
+        acknowledge(callback, { ok: false, error: "Unable to send message" });
+      }
+    });
+
+    socket.on("messageRead", (payload = {}) => {
+      const senderId = payload.senderId?.toString();
+      if (!senderId || !isValidConversationId(senderId)) return;
+      io.to(`user:${senderId}`).emit("messageReadConfirmation", {
+        receiverId: userId,
+      });
+    });
 
     socket.on("disconnect", () => {
       const sockets = onlineUsers.get(userId);

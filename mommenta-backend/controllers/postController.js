@@ -1,9 +1,10 @@
 import cloudinary from "../middleware/cloudinary.js";
 import Post from "../models/Post.js";
 import User from "../models/User.js";
-import Notification from "../models/Notification.js";
 import { canViewUserContent, getHiddenPrivateUserIds } from "../utils/privacy.js";
 import { removeTempFile } from "../utils/files.js";
+import fs from "fs";
+import { notifySocialEvent } from "../services/notificationService.js";
 
 // ==============================
 // Create a new post
@@ -176,14 +177,13 @@ export const likePost = async (req, res) => {
 
     await post.save();
     if (!alreadyLiked && post.user.toString() !== userId.toString()) {
-      const notification = await Notification.create({
-        user: post.user,
-        sender: userId,
+      await notifySocialEvent({
+        app: req.app,
+        recipientId: post.user,
+        actorId: userId,
         type: "like",
-        post: post._id,
+        postId: post._id,
       });
-      await notification.populate("sender", "username profilePic");
-      req.app.get("io")?.to(`user:${post.user}`).emit("newNotification", notification);
     }
     res.json({ msg: alreadyLiked ? "Unliked" : "Liked", likes: post.likes.length });
   } catch (err) {
@@ -219,14 +219,13 @@ export const commentOnPost = async (req, res) => {
     await post.save();
     await post.populate("comments.user", "username profilePic");
     if (post.user.toString() !== req.user.id.toString()) {
-      const notification = await Notification.create({
-        user: post.user,
-        sender: req.user.id,
+      await notifySocialEvent({
+        app: req.app,
+        recipientId: post.user,
+        actorId: req.user.id,
         type: "comment",
-        post: post._id,
+        postId: post._id,
       });
-      await notification.populate("sender", "username profilePic");
-      req.app.get("io")?.to(`user:${post.user}`).emit("newNotification", notification);
     }
 
     res.json(post);

@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import User from "../models/User.js";
 import cloudinary from "../middleware/cloudinary.js";
 import { removeTempFile } from "../utils/files.js";
+import { notifyChatRecipients } from "../services/notificationService.js";
 
 const getChatAccess = async (chatId, userId) => {
   if (!mongoose.isValidObjectId(chatId)) {
@@ -190,6 +191,11 @@ export const sendMessage = async (req, res) => {
     if (receiverId && io) {
       io.to(`user:${receiverId}`).emit("receiveMessage", populatedMessage.toObject());
     }
+
+    await notifyChatRecipients({
+      recipientIds: chat.members,
+      senderId,
+    });
 
     res.status(201).json(populatedMessage);
   } catch (error) {

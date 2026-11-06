@@ -18,12 +18,19 @@ export const getNotifications = async (req, res) => {
 // Mark as read
 export const markAsRead = async (req, res) => {
   try {
+    if (!/^[a-f\d]{24}$/i.test(req.params.id)) {
+      return res.status(404).json({ msg: "Notification not found" });
+    }
+
     const notification = await Notification.findOneAndUpdate(
       { _id: req.params.id, user: req.user.id },
       { $set: { read: true } },
       { new: true }
     );
-    if (!notification) return res.status(404).json({ msg: "Notification not found" });
+    if (!notification) {
+      return res.status(404).json({ msg: "Notification not found" });
+    }
+
     res.json(notification);
   } catch (err) {
     console.error("Mark notification read error:", err);

@@ -4,6 +4,7 @@ import Post from "../models/Post.js";
 import fs from "fs";
 import cloudinary from "../middleware/cloudinary.js";
 import { canViewUserContent } from "../utils/privacy.js";
+import { notifySocialEvent } from "../services/notificationService.js";
 
 export const getProfile = async (req, res) => {
   try {
@@ -143,15 +144,12 @@ export const followUser = async (req, res) => {
     await currentUser.save();
     await userToFollow.save();
 
-    // Optional: Create follow notification
-    const newNotification = new Notification({
-      user: userToFollow._id,
-      sender: currentUser._id,
+    await notifySocialEvent({
+      app: req.app,
+      recipientId: userToFollow._id,
+      actorId: currentUser._id,
       type: "follow",
     });
-    await newNotification.save();
-    await newNotification.populate("sender", "username profilePic");
-    req.app.get("io")?.to(`user:${userToFollow._id}`).emit("newNotification", newNotification);
 
     return res.json({
       msg: "User followed successfully",
@@ -251,13 +249,12 @@ export const acceptFollowRequest = async (req, res) => {
       sender: requester._id,
       type: "followRequest",
     });
-    const notification = await Notification.create({
-      user: requester._id,
-      sender: owner._id,
+    await notifySocialEvent({
+      app: req.app,
+      recipientId: requester._id,
+      actorId: owner._id,
       type: "follow",
     });
-    await notification.populate("sender", "username profilePic");
-    req.app.get("io")?.to(`user:${requester._id}`).emit("newNotification", notification);
     res.json({ msg: "Follow request accepted" });
   } catch (err) {
     console.error("Accept follow request error:", err);

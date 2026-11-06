@@ -14,7 +14,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-package-lock.json
 .pnpm-debug.log
 
 # =========================
@@ -41,3 +40,8 @@ Thumbs.db
 # Optional: if using Vite or CRA
 # =========================
 vite.config.js.timestamp-*
+
+# Firebase private credentials
+*firebase-adminsdk*.json
+*service-account*.json
+serviceAccountKey.json

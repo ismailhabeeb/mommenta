@@ -106,10 +106,10 @@ export default function ChatRoom({ activeChat, onBack }) {
   const handleTyping = (e) => {
     setText(e.target.value);
     if (socket && chatId) {
-      socket.emit("typing", chatId);
+      socket.emit("userTyping", { chatId });
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
-        socket.emit("stopTyping", chatId);
+        socket.emit("userStopTyping", { chatId });
       }, 1500);
     }
   };
