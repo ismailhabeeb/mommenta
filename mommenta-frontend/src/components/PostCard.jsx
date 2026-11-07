@@ -266,7 +266,7 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
                 spaceBetween={6}
                 slidesPerView={Math.min(mediaItems.length, 6)}
                 watchSlidesProgress
-                className="px-3 py-2"
+                className="px-2 py-1"
               >
                 {mediaItems.map((m, i) => (
                   <SwiperSlide key={i} className="cursor-pointer">
@@ -279,14 +279,14 @@ export default function PostCard({ post, currentusername, onUpdateComments }) {
                       {m.mediaType?.startsWith("video") ? (
                         <video
                           src={m.mediaUrl}
-                          className="w-12 h-12 md:w-10 md:h-10 object-cover rounded-md"
+                          className="w-6 h-3 md:w-8 md:h-4 object-cover rounded-md"
                           muted
                         />
                       ) : (
                         <img
                           src={m.mediaUrl}
                           alt={`thumb-${i}`}
-                          className="w-12 h-12 md:w-10 md:h-10 object-cover rounded-md"
+                          className="w-6 h-3 md:w-8 md:h-4 object-cover rounded-md"
                         />
                       )}
                     </div>
