@@ -20,9 +20,13 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.messagin
   const messaging = firebase.messaging();
 
   messaging.onBackgroundMessage((payload) => {
-    const title = payload.notification?.title || "Mommenta";
+    // FCM automatically displays notification payloads in the background. Do
+    // not display them again here; this worker displays our data-only messages.
+    if (payload.notification) return;
+
+    const title = payload.data?.title || "Mommenta";
     const options = {
-      body: payload.notification?.body || "You have a new notification.",
+      body: payload.data?.body || "You have a new notification.",
       icon: "/vite.svg",
       data: { link: payload.data?.link || payload.data?.url || "/" },
     };

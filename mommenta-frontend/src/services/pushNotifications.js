@@ -107,8 +107,8 @@ export const listenForForegroundMessages = async () => {
   if (!messaging) return () => {};
 
   return onMessage(messaging, (payload) => {
-    const title = payload.notification?.title || "Mommenta";
-    const body = payload.notification?.body;
+    const title = payload.data?.title || payload.notification?.title || "Mommenta";
+    const body = payload.data?.body || payload.notification?.body;
     if (body) toast(`${title}: ${body}`, { duration: 5000 });
   });
 };

@@ -181,7 +181,7 @@ export const sendMessage = async (req, res) => {
 
     const populatedMessage = await message.populate(
       "sender",
-      "username profilePic"
+      "username fullName profilePic"
     );
 
     // Real-time socket emission
@@ -195,6 +195,10 @@ export const sendMessage = async (req, res) => {
     await notifyChatRecipients({
       recipientIds: chat.members,
       senderId,
+      senderName:
+        populatedMessage.sender.fullName || populatedMessage.sender.username,
+      text: populatedMessage.text,
+      media: populatedMessage.media,
     });
 
     res.status(201).json(populatedMessage);

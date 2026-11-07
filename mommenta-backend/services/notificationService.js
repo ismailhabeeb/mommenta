@@ -26,6 +26,23 @@ const SOCIAL_EVENT_CONTENT = {
 };
 
 const normalizeId = (id) => id?.toString();
+const MAX_PUSH_BODY_LENGTH = 300;
+
+const getChatPushBody = (text, media = []) => {
+  const messageText = typeof text === "string" ? text.trim() : "";
+  if (messageText) {
+    return messageText.length > MAX_PUSH_BODY_LENGTH
+      ? `${messageText.slice(0, MAX_PUSH_BODY_LENGTH - 1)}…`
+      : messageText;
+  }
+
+  if (media.length === 1) {
+    if (media[0].mediaType === "image") return "Sent you a photo";
+    if (media[0].mediaType === "video") return "Sent you a video";
+  }
+  if (media.length > 1) return "Sent you attachments";
+  return "Sent you an attachment";
+};
 
 const sendPushToUser = async ({ userId, actorId, title, body, path }) => {
   if (!userId || normalizeId(userId) === normalizeId(actorId)) return;
@@ -51,8 +68,9 @@ const sendPushToUser = async ({ userId, actorId, title, body, path }) => {
     try {
       const result = await messaging.sendEachForMulticast({
         tokens: batch,
-        notification: { title, body },
-        data: { link: path },
+        // Data-only payload: the service worker owns background display, avoiding
+        // duplicate notifications from FCM's automatic display plus showNotification.
+        data: { title, body, link: path },
       });
 
       const invalidTokens = result.responses.flatMap((response, index) =>
@@ -120,18 +138,30 @@ export const notifySocialEvent = async ({
   });
 };
 
-export const notifyChatRecipients = async ({ recipientIds, senderId }) => {
+export const notifyChatRecipients = async ({
+  recipientIds,
+  senderId,
+  senderName,
+  text,
+  media,
+}) => {
   const recipients = [...new Set((recipientIds || []).map(normalizeId))].filter(
     (recipientId) => recipientId && recipientId !== normalizeId(senderId)
   );
+
+  const title =
+    typeof senderName === "string" && senderName.trim()
+      ? senderName.trim().slice(0, 100)
+      : "New message";
+  const body = getChatPushBody(text, media);
 
   await Promise.all(
     recipients.map((recipientId) =>
       sendPushToUser({
         userId: recipientId,
         actorId: senderId,
-        title: "Mommenta",
-        body: "You have a new message.",
+        title,
+        body,
         path: "/home",
       })
     )
